@@ -1,0 +1,304 @@
+{
+  "name": "Daily Research Paper Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 9 * * *"
+            },
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -144
+      ],
+      "id": "27e63cb0-c84a-4959-9dcb-e45b98f07fb8",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://export.arxiv.org/api/query?search_query=(cat:cs.CV OR cat:cs.CL OR cat:cs.AI) AND (abs:table AND (abs:extraction OR abs:detection OR abs:recognition OR abs:parsing)) AND (abs:document OR abs:PDF)&start=0&max_results=10&sortBy=submittedDate&sortOrder=descending",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        -144
+      ],
+      "id": "b82d3a60-e8d9-47ea-8448-b9a9c0952098",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reference the XML parsing node's output\nconst originalPapers = $('XML_parsing_code').all();\n\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  // Get AI summary from Ollama output (it's in the 'content' field)\n  let summary = 'Summary not available';\n  \n  if (items[i].json.content) {\n    summary = items[i].json.content;\n  }\n  \n  // Get original paper data by index\n  const original = originalPapers[i]?.json || {};\n  \n  results.push({\n    json: {\n      paperTitle: original.title || 'N/A',\n      authors: original.authors || 'N/A',\n      venue: original.venue || 'N/A',\n      year: original.year || 'N/A',\n      summary: summary.trim(),\n      arxivLink: original.arxivLink || 'N/A',\n      dateAdded: original.dateAdded || new Date().toISOString().split('T')[0]\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -144
+      ],
+      "id": "86d329fc-f2a4-4371-b06c-ffafd20226dd",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1FIMTjbd9UYgjhZLCnYEHk2jQLO8sa47-YFli5RE0-r0",
+          "mode": "list",
+          "cachedResultName": "Research Papers - PDF Table Extraction",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FIMTjbd9UYgjhZLCnYEHk2jQLO8sa47-YFli5RE0-r0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1FIMTjbd9UYgjhZLCnYEHk2jQLO8sa47-YFli5RE0-r0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Paper Title": "={{ $json.paperTitle }}",
+            "Authors": "={{ $json.authors }}",
+            "Publication Venue": "={{ $json.venue }}",
+            "Publication Year": "={{ $json.year }}",
+            "Summary": "={{ $json.summary }}",
+            "arXiv Link": "={{ $json.arxivLink }}",
+            "Date Added": "={{ $json.dateAdded }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Paper Title",
+              "displayName": "Paper Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Authors",
+              "displayName": "Authors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Publication Venue",
+              "displayName": "Publication Venue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Publication Year",
+              "displayName": "Publication Year",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "arXiv Link",
+              "displayName": "arXiv Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date Added",
+              "displayName": "Date Added",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        944,
+        -144
+      ],
+      "id": "d0d79583-0c98-4ba7-b597-796f58797190",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uHtjd3pr06jSCVX9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse arXiv XML response without external dependencies\nconst xmlData = items[0].json.data;\n\n// Helper function to extract text between XML tags\nfunction extractTag(xml, tag) {\n  const regex = new RegExp(`<${tag}[^>]*>([\\\\s\\\\S]*?)<\\\\/${tag}>`, 'g');\n  const matches = [];\n  let match;\n  while ((match = regex.exec(xml)) !== null) {\n    matches.push(match[1].trim());\n  }\n  return matches;\n}\n\n// Helper function to extract single tag value\nfunction extractSingleTag(xml, tag) {\n  const regex = new RegExp(`<${tag}[^>]*>([\\\\s\\\\S]*?)<\\\\/${tag}>`);\n  const match = xml.match(regex);\n  return match ? match[1].trim() : '';\n}\n\n// Helper function to extract attribute\nfunction extractAttribute(xml, tag, attr) {\n  const regex = new RegExp(`<${tag}[^>]*${attr}=\"([^\"]*)\"`, 'g');\n  const matches = [];\n  let match;\n  while ((match = regex.exec(xml)) !== null) {\n    matches.push(match[1]);\n  }\n  return matches;\n}\n\n// Split XML into entries\nconst entryRegex = /<entry>([\\s\\S]*?)<\\/entry>/g;\nconst entries = [];\nlet entryMatch;\nwhile ((entryMatch = entryRegex.exec(xmlData)) !== null) {\n  entries.push(entryMatch[1]);\n}\n\n// Parse each entry\nconst papers = entries.map(entry => {\n  // Get title\n  const title = extractSingleTag(entry, 'title').replace(/\\s+/g, ' ');\n  \n  // Get authors\n  const authorMatches = extractTag(entry, 'name');\n  const authors = authorMatches.join(', ') || 'Unknown';\n  \n  // Get abstract\n  const abstract = extractSingleTag(entry, 'summary').replace(/\\s+/g, ' ');\n  \n  // Get published date and year\n  const published = extractSingleTag(entry, 'published');\n  const year = published ? new Date(published).getFullYear() : 'N/A';\n  \n  // Get arXiv ID/link\n  const arxivLink = extractSingleTag(entry, 'id');\n  \n  // Get categories\n  const categories = extractAttribute(entry, 'category', 'term');\n  const venue = categories.length > 0 ? `arXiv (${categories.join(', ')})` : 'arXiv';\n  \n  return {\n    title,\n    authors,\n    venue,\n    year,\n    abstract,\n    arxivLink,\n    dateAdded: new Date().toISOString().split('T')[0]\n  };\n});\n\n// Return parsed papers\nreturn papers.map(paper => ({ json: paper }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        -144
+      ],
+      "id": "52bca33a-2b40-47d8-a888-0b98690e92d6",
+      "name": "XML_parsing_code"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "llama3.2:latest",
+          "mode": "list",
+          "cachedResultName": "llama3.2:latest"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Summarize this research paper abstract in 2-3 concise sentences, focusing on the methodology and key findings:\n\n   Title: {{ $json.title }}\n\n   Abstract: {{ $json.abstract }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -144
+      ],
+      "id": "053d1bf3-8f72-43d0-87f6-3cb60fadca3c",
+      "name": "Message a model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "VbBs2ilSA9Kf9iHI",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Edit the topic that you are looking for in the HTTP GET URL.",
+        "height": 96,
+        "width": 176
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -128,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "5fe2d4df-6fa8-41e0-9ad0-23cb7e214136",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "XML_parsing_code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML_parsing_code": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "30003ddb-e6ee-4876-ad00-f1abdec002d7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "jgXYAYzL9ZxZ14xc",
+  "tags": []
+}
