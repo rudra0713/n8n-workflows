@@ -1,0 +1,353 @@
+{
+  "name": "Legal Service Email Handling",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2320,
+        -480
+      ],
+      "id": "6996b9bb-af2d-4bf4-93b1-075604bb8054",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Jc4BVLdcGtnC3SYb",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $('Gmail Trigger').item.json.snippet }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Client Name",
+              "description": "Name of the person who sent the email"
+            },
+            {
+              "name": "Client Phone Number",
+              "description": "Phone number of the client"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -1904,
+        -480
+      ],
+      "id": "57f30182-1133-4814-8b01-23c1d5426c21",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "188d92a7-126b-4201-89ce-cbcced163192",
+              "name": "Client Email",
+              "value": "={{ $json.From }}",
+              "type": "string"
+            },
+            {
+              "id": "a83c6f26-cd0a-4220-9a7a-04a73146ae31",
+              "name": "Email Subject",
+              "value": "={{ $json.Subject }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2112,
+        -480
+      ],
+      "id": "505807c7-770e-48b8-a11f-a3ceb66239e5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1984,
+        -272
+      ],
+      "id": "dcdca6a5-b180-4da2-a2e4-99e3a3d8ca5d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $('Gmail Trigger').item.json.snippet }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "FAMILY LAW",
+              "description": "Family law deals with legal matters involving family relationships, domestic relations, and personal family matters."
+            },
+            {
+              "category": "PERSONAL INJURY",
+              "description": "Personal injury law covers cases where individuals suffer physical or psychological harm due to another party's negligence or intentional actions."
+            },
+            {
+              "category": "REAL ESTATE LAW",
+              "description": "Real estate law governs the purchase, sale, use, and transfer of land and property, including residential, commercial, and landlord-tenant matters."
+            },
+            {
+              "category": "CRIMINAL DEFENSE",
+              "description": "Criminal defense involves representing individuals accused of criminal offenses, from minor infractions to serious felonies."
+            },
+            {
+              "category": "CORPORATE/BUSINESS LAW",
+              "description": "Corporate and business law encompasses legal matters related to forming, operating, and dissolving businesses, as well as commercial transactions."
+            },
+            {
+              "category": "ESTATE PLANNING",
+              "description": "Estate planning involves preparing legal documents to manage an individual's assets during life and after death, including wills, trusts, and healthcare directives."
+            },
+            {
+              "category": "EMPLOYMENT LAW",
+              "description": "Employment law governs the relationship between employers and employees, including workplace rights, discrimination, and wrongful termination."
+            }
+          ]
+        },
+        "options": {
+          "multiClass": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -1552,
+        -480
+      ],
+      "id": "0d6b39f8-27b6-4bba-be67-13afdc5f5434",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1552,
+        -144
+      ],
+      "id": "d70b557d-4241-46c7-964b-2e11fc20c70d",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PbqQEWEZKO9y3w4qP70RMnwr_Na07UBkubWrKC_hBnI",
+          "mode": "list",
+          "cachedResultName": "n8n-legal-service-attorneys",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PbqQEWEZKO9y3w4qP70RMnwr_Na07UBkubWrKC_hBnI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PbqQEWEZKO9y3w4qP70RMnwr_Na07UBkubWrKC_hBnI/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Primary Practice Area",
+              "lookupValue": "Family Law"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1024,
+        -608
+      ],
+      "id": "fc6a4ace-3af8-40a9-b59d-3eca705776b3",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "J3dN7ZIxeZZLzpbq",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Gmail Trigger": [
+      {
+        "json": {
+          "id": "19ad8a7a34b588cf",
+          "threadId": "19ad8a7a34b588cf",
+          "snippet": "Hi, My name is Sarah Martinez and I&#39;m reaching out because I need legal help with my marriage. My husband and I have been married for 14 years, but we&#39;ve decided to separate. We have two",
+          "payload": {
+            "mimeType": "text/plain"
+          },
+          "sizeEstimate": 4650,
+          "historyId": "3502983",
+          "internalDate": "1764571455000",
+          "labels": [
+            {
+              "id": "INBOX",
+              "name": "INBOX"
+            },
+            {
+              "id": "IMPORTANT",
+              "name": "IMPORTANT"
+            },
+            {
+              "id": "CATEGORY_PERSONAL",
+              "name": "CATEGORY_PERSONAL"
+            },
+            {
+              "id": "UNREAD",
+              "name": "UNREAD"
+            }
+          ],
+          "To": "Rudra Saha <rudra.ranajee@gmail.com>",
+          "From": "Rudra Saha <rrs99@cs.ubc.ca>",
+          "Subject": "n8n - Divorce consultation - custody concerns"
+        }
+      }
+    ],
+    "Information Extractor": [
+      {
+        "json": {
+          "output": {
+            "Client Name": "Sarah Martinez",
+            "Client Phone Number": "123-456-7890"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a0b4eefa-4c52-4b27-aac2-f4be56093fd9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "oQnG7Q5elYoQfIbl",
+  "tags": []
+}

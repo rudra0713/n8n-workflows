@@ -1,0 +1,323 @@
+{
+  "name": "Journey Planner",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -32
+      ],
+      "id": "a0eb926a-faf5-4634-8d55-50c5e3552bc3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc585134-722b-4b24-a908-6f91b4f0845e",
+              "name": "destination",
+              "value": "Chicago",
+              "type": "string"
+            },
+            {
+              "id": "597deaa8-2479-4bbc-b229-37f443daf319",
+              "name": "start_date",
+              "value": "2025-12-05",
+              "type": "string"
+            },
+            {
+              "id": "51123c71-d569-416e-a41d-14449b04459d",
+              "name": "end_data",
+              "value": "2025-12-15",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -192,
+        -32
+      ],
+      "id": "9651b114-2634-4309-83e4-378b4488ee88",
+      "name": "Set Trip Details"
+    },
+    {
+      "parameters": {
+        "url": "https://nominatim.openstreetmap.org/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "=Chicago {{ $json.destination }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-clothing-planner"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "d3e60527-14fe-4071-8c12-c0bb3db8d98c",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1e199b87-aafd-46ed-a573-74410fde0920",
+              "name": "latitude",
+              "value": "={{ $json.lat }}",
+              "type": "string"
+            },
+            {
+              "id": "c29152ee-f526-49c9-a52d-d201538d7363",
+              "name": "longitude",
+              "value": "={{ $json.lon }}",
+              "type": "string"
+            },
+            {
+              "id": "af1a070d-6ab9-4e74-8226-c66ae601a35c",
+              "name": "destination",
+              "value": "={{ $('Set Trip Details').item.json.destination }}",
+              "type": "string"
+            },
+            {
+              "id": "b3bf0dab-c298-4dbf-a662-03dbe20c2e1e",
+              "name": "start_date",
+              "value": "={{ $('Set Trip Details').item.json.start_date }}",
+              "type": "string"
+            },
+            {
+              "id": "ac54c4a0-1abf-4d35-ba12-6d3093c28c4a",
+              "name": "end_date",
+              "value": "={{ $('Set Trip Details').item.json.end_data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        -32
+      ],
+      "id": "12e8d5bb-1275-4ca6-b108-6024ff3b3de2",
+      "name": "Extract Lat/Lon"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "latitude",
+              "value": "={{ $json.latitude }}"
+            },
+            {
+              "name": "longitude",
+              "value": "={{ $json.longitude }}"
+            },
+            {
+              "name": "start_date",
+              "value": "={{ $json.start_date}}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{ $json.end_date }}"
+            },
+            {
+              "name": "daily",
+              "value": "temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code"
+            },
+            {
+              "name": "timezone",
+              "value": "auto"
+            },
+            {
+              "name": "temperature_unit",
+              "value": "celsius"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        432,
+        -32
+      ],
+      "id": "6bd08ff0-1e5d-495a-9c2c-dc132466bf23",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a travel packing assistant with weather analysis expertise.\n\nAnalyze the weather forecast for {{ $('Extract Lat/Lon').item.json.destination }} from {{ $('Extract Lat/Lon').item.json.start_date }} to {{ $('Extract Lat/Lon').item.json.end_date }}.\n\nWeather Forecast Data:\n{{ JSON.stringify($json, null, 2) }}\n\nCreate a well-formatted packing list email with the following structure:\n\n---\n\nWEATHER SUMMARY\n\n[Provide a brief 2-3 sentence overview of the weather conditions. Focus on temperature range, precipitation, and what to expect]\n\n---\n\nPACKING LIST\n\nCLOTHING ESSENTIALS\n- [Item]: [quantity]\n- [Item]: [quantity]\n\nOUTERWEAR & LAYERS\n- [Item]: [quantity]\n\nFOOTWEAR\n- [Item]: [quantity]\n\nACCESSORIES\n- [Item]: [quantity]\n\n---\n\nPACKING TIPS\n\n[Provide 2-3 practical tips for this specific weather, e.g., layering advice, must-have items]\n\n---\n\nFORMAT RULES:\n- Use clear section headers in ALL CAPS\n- Use bullet points (•) for all lists\n- Keep each item on ONE line\n- Be concise - no explanations in parentheses unless essential\n- Use proper line breaks between sections\n- Maximum 15 total items in packing list\n- No need to repeat destination or dates in the body"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -32
+      ],
+      "id": "ffc2b027-da29-4f29-b99b-7a5206b2955b",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "rudra.ranajee@gmail.com",
+        "subject": "Clothing Recommendation for Upcoming Trip!",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        -32
+      ],
+      "id": "cff04a76-ac75-4fc6-8e0b-b6ca9e72050b",
+      "name": "Send a message",
+      "webhookId": "ee072f81-192e-4fef-9897-9fc5d9d052b6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bS8RLvU8G2RlZd9b",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Trip Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Trip Details": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Lat/Lon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Lat/Lon": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "53512e51-9336-4c68-a5a5-6f027f3e575f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "8nA5gg16sDkMCevR",
+  "tags": []
+}
