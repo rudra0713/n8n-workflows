@@ -1,0 +1,600 @@
+{
+  "name": "Legal Research Assistant with AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "slack-legal-research",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -560,
+        -64
+      ],
+      "id": "bdefab5f-6628-41df-82cc-5414cfd70f26",
+      "name": "Webhook",
+      "webhookId": "85bdec13-b349-4012-bd47-a8fac58bf3e6"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response_type\": \"ephemeral\",   \n  \"text\": \"🔍 Researching: *{{ $json.query }}*\\n \\nI'll send results shortly...\"\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -144,
+        -64
+      ],
+      "id": "7d68817d-a379-4b92-8dc6-58e15ca3d551",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a legal research assistant.\n\nUser query: \"{{ $('Extract Slack Data').item.json.query }}\"\n\n## DETERMINE REQUEST TYPE:\n\n### 1. NEW SEARCH QUERY\nUser wants to find new cases from CourtListener.\n\nExamples: \n- \"Find California employment cases from 2024\"\n- \"Search for trade secret misappropriation cases\"\n- \"California wrongful termination cases\"\n\nAction: Use search_courtlistener tool\n\nSearch Guidelines:\n- For California STATE cases: use court code \"calctapp\" (California Court of Appeal)\n- For California FEDERAL cases: use court code \"ca9\" (9th Circuit) or \"cand\"/\"cacd\"/\"casd\" (district courts)\n- Include relevant date filters when user specifies timeframe\n- Return top 5-10 most relevant results\n- Present results with case names, filing dates, and courts\n- Tell user: \"Ask me for details on any specific case by name\"\n\n### 2. CASE DETAILS REQUEST\nUser wants information about a specific case that was previously searched.\n\nExamples:\n- \"Tell me about Cook v. University of Southern California\"\n- \"Give me details on the Kern County Hospital case\"\n- \"What's the Cook case about?\"\n- \"More information on Balderas v. Fresh Start\"\n\nAction: Follow this process:\n\nStep 1: Call get_database_schema tool\n- This returns all available case names in the database\n- Review the list to find the case that matches the user's query\n\nStep 2: Match the case name\n- Find the exact case name from the list that best matches what the user asked about\n- Use partial matching if needed (e.g., user says \"Cook case\" → match \"Cook v. University of Southern California\")\n\nStep 3: Write SQL query using EXACT case name\n- Use the exact case name from the database list\n- Query format: SELECT case_name, court, filed_date, snippet, download_url FROM case_results WHERE case_name = 'Exact Case Name From Database'\n- If multiple matches, add: ORDER BY filed_date DESC LIMIT 1\n\nStep 4: Call execute_sql_query tool with your SQL query\n\nStep 5: Summarize the results\n- Present case name, court, and filing date\n- Provide a clear summary of the snippet in plain language\n- Highlight key legal issues, holdings, or rulings mentioned\n- If download_url is available, mention that the full opinion can be accessed\n\n## IMPORTANT RULES:\n\n1. If search_courtlistener fails or times out: Use report_database_unavailable tool\n\n2. Always be clear about whether you're searching for new cases or retrieving previously found cases\n\n3. For database queries:\n   - ALWAYS call get_database_schema first to see available cases\n   - Use EXACT case names from the database in your SQL queries\n   - Never guess or approximate case names\n\n4. If user's case name query doesn't match any cases in database:\n   - Tell them: \"I don't have that case in my database. Would you like me to search for it on CourtListener?\"\n\n5. Keep responses clear, professional, and focused on legal information\n\n## AVAILABLE TOOLS:\n- search_courtlistener: Search CourtListener API for new cases\n- get_database_schema: Get list of all available cases in database\n- execute_sql_query: Run SQL queries on database\n- report_database_unavailable: Use when CourtListener API fails",
+        "options": {
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        64,
+        -64
+      ],
+      "id": "ed1526da-ce5c-4e1a-80ff-5bac5500f718",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -80,
+        144
+      ],
+      "id": "62e0de0b-81cb-43a6-966b-c7c3f009d4a2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search CourtListener for legal cases. Use this when the user asks about case law, court decisions, or legal precedents. \n\nParameters:\n- q: search query (e.g., \"trade secret California\")\n- court: court code (optional, e.g., \"ca\" for California)\n- filed_after: date in YYYY-MM-DD format (optional)\n\nReturns: List of relevant cases with names, citations, and court information.",
+        "url": "https://www.courtlistener.com/api/rest/v4/search/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI(\"q\", \"Search query for legal cases\", \"string\") }}"
+            },
+            {
+              "name": "type",
+              "value": "o"
+            },
+            {
+              "name": "order_by",
+              "value": "score desc"
+            },
+            {
+              "name": "court",
+              "value": "={{ $fromAI(\"court\", \"Court code like 'ca' for California courts\", \"string\") }}"
+            },
+            {
+              "name": "filed_after",
+              "value": "={{ $fromAI(\"filed_after\", \"Date in YYYY-MM-DD format to filter recent cases\", \"string\") }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token 87d5fb974f14ed0d162a4c8676b0371bb93822bb"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        256
+      ],
+      "id": "63bd0ab1-9e23-40b2-8b98-84802c8970da",
+      "name": "search_courtlistener",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Extract Slack Data').item.json.response_url }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $('AI Agent').item.json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        832,
+        160
+      ],
+      "id": "8d8ffdf9-029d-44e1-8c69-220f4d1ca50c",
+      "name": "Send response to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f2c32094-363c-417b-b395-83fd4f8935c2",
+              "name": "user_name",
+              "value": "={{ $json.body.user_name }}",
+              "type": "string"
+            },
+            {
+              "id": "bd4afa5d-4560-4ccf-ac86-90c08cccfefa",
+              "name": "query",
+              "value": "={{ $json.body.text }}",
+              "type": "string"
+            },
+            {
+              "id": "75821871-c47b-4bbf-9a8b-75484bd021cd",
+              "name": "response_url",
+              "value": "={{ $json.body.response_url }}",
+              "type": "string"
+            },
+            {
+              "id": "3166c630-2189-48f6-83d9-7e3c8a5c364e",
+              "name": "channel_id",
+              "value": "={{ $json.body.channel_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -352,
+        -64
+      ],
+      "id": "0a667df0-4dad-4d69-b89a-ada3f49a0ac2",
+      "name": "Extract Slack Data"
+    },
+    {
+      "parameters": {
+        "description": "Use this tool ONLY when search_courtlistener fails due to timeout or connection errors. This informs the user that the legal database is temporarily down.",
+        "jsCode": "const query = $input.item.json.query || $input.item.json.q || \"your query\";\n\nreturn {\n  message: `I attempted to search CourtListener for \"${query}\" but the database is currently experiencing server issues and is unavailable.`,\n  suggestion: \"This is a temporary issue with CourtListener.com's servers. Please try again in a few minutes, or I can provide general legal information about your topic instead.\",\n  alternative: \"Would you like me to help with general legal concepts, or would you prefer to try the search again later?\"\n};"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        176
+      ],
+      "id": "fbebd9ee-cbcd-41f7-a4d7-e09884668aa1",
+      "name": "report_database_unavailable"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the AI Agent output\nconst intermediateSteps = $input.item.json.intermediateSteps;\n\n// Parse the observation (it's a JSON string)\nconst observation = JSON.parse(intermediateSteps[0].observation);\n\n// Extract the results array\nconst results = observation[0].results;\n\n// Get user info from earlier node\nconst userId = $('Extract Slack Data').item.json.user_name;\nconst searchQuery = $('Extract Slack Data').item.json.query;\n\n// Return each case as a separate item\nreturn results.map(caseItem => ({\n  json: {\n    user_id: userId,\n    search_query: searchQuery,\n    case_name: caseItem.caseName,\n    filed_date: caseItem.dateFiled,\n    court: caseItem.court,\n    download_url: caseItem.opinions?.[0]?.download_url || null,\n    opinion_id: caseItem.opinions?.[0]?.id || null,\n    snippet: caseItem.opinions?.[0]?.snippet || null\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -64
+      ],
+      "id": "25367dfe-17a1-4b2f-9e97-ec6d086e4b8e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "case_results",
+          "mode": "list",
+          "cachedResultName": "case_results"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "search_query": "={{ $json.search_query }}",
+            "case_name": "={{ $json.case_name }}",
+            "filed_date": "={{ $json.filed_date }}",
+            "court": "={{ $json.court }}",
+            "download_url": "={{$json.download_url}}",
+            "opinion_id": "={{ $json.opinion_id }}",
+            "snippet": "={{ $json.snippet }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "search_query",
+              "displayName": "search_query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "case_name",
+              "displayName": "case_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "filed_date",
+              "displayName": "filed_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "court",
+              "displayName": "court",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "download_url",
+              "displayName": "download_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "opinion_id",
+              "displayName": "opinion_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "snippet",
+              "displayName": "snippet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "skipOnConflict": true
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        -64
+      ],
+      "id": "1900fd1c-e33f-47f8-b5f1-a6d50dc6b71a",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "WYcUMEZ15hijyRZm",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Execute a SQL query in Postgres.\nGets the schema and sample data from the case_results table. Use this FIRST when you need to query the database to understand the table structure and data format.\nReturns: Column definitions and 2 sample rows",
+        "operation": "executeQuery",
+        "query": "SELECT case_name, court, filed_date\nFROM case_results\nORDER BY created_at DESC\nLIMIT 50; ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        64,
+        224
+      ],
+      "id": "f1bbfc92-5750-43ac-828a-edc854bf0d48",
+      "name": "get_database_schema",
+      "credentials": {
+        "postgres": {
+          "id": "WYcUMEZ15hijyRZm",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Executes a SELECT query on the case_results database. Use this after calling get_database_schema to understand the table structure.\n\nIMPORTANT: \n- Only SELECT queries allowed\n- Use ILIKE for case-insensitive partial matching\n- Always limit results to avoid overwhelming output",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query', 'The complete SQL SELECT query to execute on case_results table', 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        544,
+        176
+      ],
+      "id": "6bd070f0-6c05-49f6-9738-bc17f7809812",
+      "name": "execute_sql_query",
+      "credentials": {
+        "postgres": {
+          "id": "WYcUMEZ15hijyRZm",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d79ae165-762c-4911-baba-790483480f35",
+              "leftValue": "={{ $json.intermediateSteps[0].action.tool }}",
+              "rightValue": "search_courtlistener",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        -64
+      ],
+      "id": "4f1131dd-6cdc-4869-8fff-b969f47677b4",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Slack Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_courtlistener": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Slack Data": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "report_database_unavailable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Send response to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_database_schema": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_sql_query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send response to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "eff584d4-85ae-4732-9027-ba059c3d1767",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "988KgYwY50KUWH6O",
+  "tags": []
+}

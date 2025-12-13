@@ -1,0 +1,449 @@
+{
+  "name": "Document Assembly & Generation System",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1pSvrYeCmYhYTh_8aCTdD8Q1wwr1LIWV9dokxzVdWK3I",
+          "mode": "list",
+          "cachedResultName": "Client Contract (Responses)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pSvrYeCmYhYTh_8aCTdD8Q1wwr1LIWV9dokxzVdWK3I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1060608213,
+          "mode": "list",
+          "cachedResultName": "Form Responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pSvrYeCmYhYTh_8aCTdD8Q1wwr1LIWV9dokxzVdWK3I/edit#gid=1060608213"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f345cd69-bd67-42bb-899f-5788b1cfb214",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "ntLOO6Fijngjoiz9",
+          "name": "Google Account Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a legal contract assembly assistant with access to a clause library.\n\n===== CONTRACT REQUEST DATA =====\nContract Type: {{ $json[\"Contract Type\"] }}\nClient Name: {{ $json[\"Client Name\"] }}\nClient Address: {{ $json[\"Client Address\"] }}\nClient Email: {{ $json[\"Client Email\"] }}\nService Description: {{ $json[\"Service Description \"] }}\nStart Date: {{ $json[\"Start Date\"] }}\nTerm Length: {{ $json[\"Term Length\"] }}\nPayment Terms: {{ $json[\"Payment Terms\"] }}\nSpecial Provisions: {{ $json[\"Special Provision\"] }}\nAttorney Name: {{ $json[\"Attorney Name\"] }}\n\n===== YOUR TASKS =====\n\nStep 1: Use the Google Docs tool to create an empty document with title: \"Consulting Agreement - {{ $json[\"Client Name\"] }} - {{ $json[\"Timestamp\"].split(' ')[0] }}\"\n\nStep 2: Query the clause library (Google Sheets tool) to fetch these clauses for \"{{ $json[\"Contract Type\"] }}\":\n- termination clause\n- payment clause\n- confidentiality clause\n- scope clause\n- liability clause\n\nStep 3: Generate the complete contract text following this structure:\n\nCONSULTING AGREEMENT\n\nThis Consulting Agreement (\"Agreement\") is entered into as of {{ $json[\"Start Date\"] }}, by and between:\n\nATTORNEY: {{ $json[\"Attorney Name\"] }}\n(\"Attorney\")\n\nand\n\nCLIENT: {{ $json[\"Client Name\"] }}\n{{ $json[\"Client Address\"] }}\n{{ $json[\"Client Email\"] }}\n(\"Client\")\n\nWHEREAS, Client desires to retain Attorney to provide legal consulting services, and Attorney agrees to provide such services upon the terms and conditions set forth in this Agreement.\n\nNOW, THEREFORE, in consideration of the mutual covenants and agreements hereinafter set forth, the parties agree as follows:\n\n1. SCOPE OF SERVICES\n\n[INSERT THE SCOPE CLAUSE YOU FETCHED FROM THE CLAUSE LIBRARY HERE]\n\nServices Description: {{ $json[\"Service Description \"] }}\n\n2. TERM\n\nThis Agreement shall commence on {{ $json[\"Start Date\"] }} and shall continue for a period of {{ $json[\"Term Length\"] }}, unless earlier terminated in accordance with the terms herein.\n\n3. COMPENSATION AND PAYMENT TERMS\n\n[INSERT THE PAYMENT CLAUSE YOU FETCHED FROM THE CLAUSE LIBRARY HERE]\n\nPayment Terms: {{ $json[\"Payment Terms\"] }}\n\n4. TERMINATION\n\n[INSERT THE TERMINATION CLAUSE YOU FETCHED FROM THE CLAUSE LIBRARY HERE]\n\n5. CONFIDENTIALITY\n\n[INSERT THE CONFIDENTIALITY CLAUSE YOU FETCHED FROM THE CLAUSE LIBRARY HERE]\n\n6. LIMITATION OF LIABILITY\n\n[INSERT THE LIABILITY CLAUSE YOU FETCHED FROM THE CLAUSE LIBRARY HERE]\n\n7. SPECIAL PROVISIONS\n\n{{ $json[\"Special Provision\"] }}\n\n8. GENERAL PROVISIONS\n\nThis Agreement constitutes the entire agreement between the parties concerning the subject matter hereof and supersedes all prior agreements and understandings, whether written or oral. This Agreement may be amended only by written instrument signed by both parties.\n\nIN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.\n\n\nATTORNEY: _____________________________\n{{ $json[\"Attorney Name\"] }}\n\nDate: _____________________________\n\n\nCLIENT: _____________________________\n{{ $json[\"Client Name\"] }}\n\nDate: _____________________________\n\n===== OUTPUT INSTRUCTIONS =====\n\nYou must output a JSON object with these two fields:\n\n{\n  \"document_id\": \"the document ID returned from the Google Docs Create tool\",\n  \"contract_text\": \"the complete contract text you generated with all clauses and data filled in\"\n}\n\nImportant:\n1. Replace ALL [INSERT X CLAUSE...] markers with actual clause text from the library\n2. Fill in all placeholders with actual data\n3. The contract_text should be the complete, ready-to-insert contract\n4. Return valid JSON only",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "849d95c8-d54c-40bd-9333-a461863a9f98",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        288,
+        208
+      ],
+      "id": "c2d7b5c8-6abc-457a-b38a-857dbb677e78",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Query the contract clause library to fetch approved legal clauses.\nThe spreadsheet has columns: clause_type, contract_type, clause_text, jurisdiction\nTo use: Specify which clause_type you need (termination, payment, confidentiality, scope, liability) and which contract_type (Consulting Agreement, Service Agreement, etc.)\nReturns the exact legal clause text that should be used in contracts.",
+        "documentId": {
+          "__rl": true,
+          "value": "1mm56t2yLvIvzBqr20iVyBc5n4KPV2bWFuCRsyr-uHQY",
+          "mode": "list",
+          "cachedResultName": "Clause-sheets",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mm56t2yLvIvzBqr20iVyBc5n4KPV2bWFuCRsyr-uHQY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mm56t2yLvIvzBqr20iVyBc5n4KPV2bWFuCRsyr-uHQY/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        320
+      ],
+      "id": "a6f82433-7fba-430e-9f11-d10b78a72bdf",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Create new Google Docs documents with title and content.\n\nTo create a document, provide:\n- title: The document title (e.g., \"Consulting Agreement - Acme Corp - 2025-12-11\")\n- content: The complete contract text to insert into the document\n\nThis tool will create the document and return the document ID and URL.\n\nUse this tool after you have generated the complete contract text with all clauses and data filled in.",
+        "folderId": "1T2CEtZ6PVRz1d0ZcHf7P20eqCwh2T2Pz",
+        "title": "={{ $json.formatted_filename }}"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        608,
+        320
+      ],
+      "id": "0967a2df-0ba1-4e47-a262-86d4b408f64c",
+      "name": "Create a document in Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "xgjzhrQu2HjtYRWH",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"document_id\": \"1v_0NcKMGRQ4EtfNPo8Ks2kLM7gUC5JA6hcBJqZrwdQs\",\n  \"contract_text\": \"CONSULTING AGREEMENT\\n\\nThis Consulting Agreement (\\\"Agreement\\\") is entered into as of 03/11/2026, by and between:\\n\\nATTORNEY: Emma Watson\\n(\\\"Attorney\\\")\\n\\nand\\n\\nCLIENT: Rudra\\nVancouver, Canada\\ndarklord.saha@gmail.com\\n(\\\"Client\\\")\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        176
+      ],
+      "id": "381bc286-8e35-44b7-a82a-36a6c89d3de8",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.output.document_id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "locationChoice": "location",
+              "text": "={{ $json.output.contract_text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -16
+      ],
+      "id": "53eb11b8-8d88-441b-9eb6-af0c466ef1a9",
+      "name": "Update a document1",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "xgjzhrQu2HjtYRWH",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.documentId }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "0fa75023-86f2-4b16-9a17-3aa9ed083a57",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wnnJspLcrGjJg4SY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "={{ $('Edit Fields').item.json.formatted_filename }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1T2CEtZ6PVRz1d0ZcHf7P20eqCwh2T2Pz",
+          "mode": "list",
+          "cachedResultName": "n8n-legal-services",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1T2CEtZ6PVRz1d0ZcHf7P20eqCwh2T2Pz"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1232,
+        -16
+      ],
+      "id": "00f2e6d9-b259-45f4-b8fa-21df2dd6653c",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wnnJspLcrGjJg4SY",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "93f7b006-d8f7-42f3-ae57-4f052168d7c5",
+              "name": "formatted_filename",
+              "value": "=Consulting Agreement - {{ $json[\"Client Name\"] }} - {{ DateTime.fromFormat($json[\"Timestamp\"], \"M/d/yyyy H:mm:ss\").toFormat(\"yyyy-MM-dd\") }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "489b1d87-e7da-4896-a079-cf85adb8e28f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json['Client Email'] }}",
+        "subject": "={{ $('Google Sheets Trigger').item.json['Contract Type'] }}-for-{{ $('Google Sheets Trigger').item.json['Client Name'] }}",
+        "emailType": "text",
+        "options": {
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1280,
+        224
+      ],
+      "id": "d76be795-5212-4c4e-bde6-a8afe907f80a",
+      "name": "Send a message",
+      "webhookId": "ecf81441-c7a2-4b02-85b7-22dc0a3ba574",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Jc4BVLdcGtnC3SYb",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Google Sheets Trigger": [
+      {
+        "json": {
+          "Timestamp": "12/11/2025 1:21:09",
+          "Contract Type": "Consulting Agreement",
+          "Client Name": "Rudra",
+          "Client Address": "Vancouver, Canada",
+          "Client Email": "darklord.saha@gmail.com",
+          "Service Description ": "Monthly legal consulting services including contract review, employment law compliance, and general business advisory. Includes up to 10 hours per month of attorney time.",
+          "Start Date": "3/11/2026",
+          "Term Length": "2 months",
+          "Payment Terms": "Monthly retainer of $5,000, due on the 1st of each month. Payment via wire transfer or check. Late payments subject to 1.5% monthly interest.",
+          "Special Provision": "Client requires 60-day termination notice. Include data security provisions per CCPA requirements. Non-solicitation clause for 2 years post-termination.",
+          "Attorney Name": "Emma Watson"
+        }
+      }
+    ],
+    "Update a document1": [
+      {
+        "json": {
+          "documentId": "1nHTW3gLLkHIkRqjHInsFiW81E3A0HCIyuS9_MZfqOKY"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Update a document1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a document in Google Docs": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a document1": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "80062544-1e1b-4ae8-afa0-b39b9bda39f7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "fGGiHtyn5s2I78XY",
+  "tags": []
+}
