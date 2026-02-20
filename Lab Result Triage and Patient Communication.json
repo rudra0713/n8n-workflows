@@ -1,0 +1,2075 @@
+{
+  "name": "Lab Result Triage and Patient Communication",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5b695b82-595a-4cf5-8345-1050bde3f21a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://hapi.fhir.org/baseR4/Observation",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "category",
+              "value": "laboratory"
+            },
+            {
+              "name": "_sort",
+              "value": "-date"
+            },
+            {
+              "name": "_count",
+              "value": "10"
+            },
+            {
+              "name": "status",
+              "value": "final"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/fhir+json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "de6f0cc0-0353-40e9-9dd8-8737ce6a7c95",
+      "name": "Fetch FHIR Observations"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "entry",
+        "options": {
+          "includeBinary": false
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "46061ad3-d5ca-4bbd-9e8e-d6487dbda78d",
+      "name": "Split Lab Results"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "735dc065-d54b-45cb-8d38-a108e96bb389",
+              "name": "observation_id",
+              "value": "={{ $json.resource.id }}",
+              "type": "string"
+            },
+            {
+              "id": "e6419d2b-ea08-412b-9684-57f872dd4c6e",
+              "name": "loinc_code",
+              "value": "={{ $json.resource.code.coding[0].code }}",
+              "type": "string"
+            },
+            {
+              "id": "3af7058d-5a8b-40f4-96c3-dc94108a7ee6",
+              "name": "test_name",
+              "value": "={{ $json.resource.code.coding[0].display }}",
+              "type": "string"
+            },
+            {
+              "id": "05753569-3695-45a6-b407-ad9efc851342",
+              "name": "patient_id",
+              "value": "={{ $json.resource.subject.reference.split('/')[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "84dc43e3-ca50-4a41-ae42-9f45e0a9ba77",
+              "name": "test_date",
+              "value": "={{ $json.resource.effectiveDateTime }}",
+              "type": "string"
+            },
+            {
+              "id": "df7fdc08-07d4-49ab-b27e-b20623f5f997",
+              "name": "result_value",
+              "value": "={{ $json.resource.valueQuantity.value }}",
+              "type": "string"
+            },
+            {
+              "id": "b3c9f225-eba5-4f33-a816-a497bb1e7d90",
+              "name": "result_unit",
+              "value": "={{ $json.resource.valueQuantity.unit }}",
+              "type": "string"
+            },
+            {
+              "id": "a7d7a89e-65d3-4861-a1d3-99ad5ebe02d5",
+              "name": "status",
+              "value": "={{ $json.resource.status }}",
+              "type": "string"
+            },
+            {
+              "id": "13fac2e8-33ea-4200-ba46-36da536a1789",
+              "name": "reference_low",
+              "value": "={{ $json.resource.referenceRange?.[0]?.low?.value ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "a7c41e5b-428f-4767-b36f-b8c52400b75c",
+              "name": "reference_high",
+              "value": "={{ $json.resource.referenceRange?.[0]?.high?.value ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "1e46eae2-7388-486b-a2a5-135a5aad2a44",
+              "name": "has_reference_range",
+              "value": "={{ $json.resource.referenceRange !== undefined && $json.resource.referenceRange !== null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "0677babc-4010-428a-9843-21b4984e8127",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Standard clinical reference ranges for common lab tests (LOINC codes)\nconst referenceRanges = {\n  '1920-8': { low: 10, high: 40, unit: 'U/L', name: 'AST' },\n  '1742-6': { low: 7, high: 56, unit: 'U/L', name: 'ALT' },\n  '1975-2': { low: 0.1, high: 1.2, unit: 'mg/dL', name: 'Bilirubin Total' },\n  '2093-3': { low: null, high: 200, unit: 'mg/dL', name: 'Total Cholesterol' },\n  '2345-7': { low: 70, high: 100, unit: 'mg/dL', name: 'Glucose' },\n  '718-7': { low: 13.5, high: 17.5, unit: 'g/dL', name: 'Hemoglobin' },\n  '777-3': { low: 150, high: 400, unit: '10^3/uL', name: 'Platelets' },\n  '6690-2': { low: 4.5, high: 11.0, unit: '10^3/uL', name: 'WBC' },\n};\n\nconst results = [];\n\n// Loop through all items\nfor (const item of $input.all()) {\n  const data = item.json;\n  \n  // Check if this item is missing reference ranges\n  if (data.reference_low === null && data.reference_high === null) {\n    \n    // Look up reference range by LOINC code\n    const reference = referenceRanges[data.loinc_code];\n    \n    if (reference) {\n      // Found it! Update the item\n      data.reference_low = reference.low;\n      data.reference_high = reference.high;\n      data.has_reference_range = true;\n      \n      console.log(`✅ Added reference for ${reference.name}: ${reference.low}-${reference.high} ${reference.unit}`);\n    } else {\n      console.log(`⚠️ No reference found for ${data.loinc_code}: ${data.test_name}`);\n    }\n  }\n  \n  results.push({ json: data });\n}\n\nconsole.log(`\\n✅ Processed ${results.length} lab results`);\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "f5f9850d-20da-46bc-91a4-7eebfd2c1882",
+      "name": "Fetch Missing References"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Analyze this lab result:\n\nTest: {{ $json.test_name }}\nResult: {{ $json.result_value }} {{ $json.result_unit }}\nReference Range: {{ $json.reference_low ?? 'N/A' }} - {{ $json.reference_high ?? 'N/A' }} {{ $json.result_unit }}\nTest Date: {{ $json.test_date }}"
+            },
+            {
+              "role": "system",
+              "content": "You are a clinical lab result analyst. Analyze lab results and classify them as:\n- NORMAL: Value is within reference range\n- ABNORMAL_NON_CRITICAL: Value is outside range but not dangerous\n- CRITICAL: Value requires immediate medical attention\n\nProvide your analysis in JSON format with these fields:\n- classification: one of the three categories above\n- severity_score: 1-10 (1=completely normal, 10=life-threatening)\n- clinical_note: brief explanation for the patient\n- provider_note: technical note for healthcare provider\n- action_required: what should happen next"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 500,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          },
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "de50c55d-856e-4649-930a-068919783f74",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// Get all items from the Code node (Fetch Missing References)\nconst labItems = $node[\"Fetch Missing References\"].json;\n\n// Get all items from OpenAI node  \nconst aiItems = $input.all();\n\n// They should be in the same order, so merge by index\nfor (let i = 0; i < aiItems.length; i++) {\n  const aiAnalysis = aiItems[i].json.output[0].content[0].text;\n  const labData = Array.isArray(labItems) ? labItems[i] : labItems;\n  \n  const merged = {\n    ...labData,\n    classification: aiAnalysis.classification,\n    severity_score: aiAnalysis.severity_score,\n    clinical_note: aiAnalysis.clinical_note,\n    provider_note: aiAnalysis.provider_note,\n    action_required: aiAnalysis.action_required\n  };\n  \n  results.push({ json: merged });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "c49b3b58-f3c4-4f9c-8e3f-ba011a57dc84",
+      "name": "Merge Lab Data with AI Analysis"
+    }
+  ],
+  "pinData": {
+    "Fetch FHIR Observations": [
+      {
+        "json": {
+          "resourceType": "Bundle",
+          "id": "1f7c695e-c465-43cb-bd2f-a6525ef76817",
+          "meta": {
+            "lastUpdated": "2026-02-11T01:39:53.314+00:00"
+          },
+          "type": "searchset",
+          "link": [
+            {
+              "relation": "self",
+              "url": "https://hapi.fhir.org/baseR4/Observation?_count=10&_sort=-date&category=laboratory&status=final"
+            },
+            {
+              "relation": "next",
+              "url": "https://hapi.fhir.org/baseR4?_getpages=1f7c695e-c465-43cb-bd2f-a6525ef76817&_getpagesoffset=10&_count=10&_pretty=true&_bundletype=searchset"
+            }
+          ],
+          "entry": [
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836443057",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "cfsb1761836443057",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+                  "source": "#dFSFNxnEw2DptxkS"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory",
+                        "display": "Laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "1920-8",
+                      "display": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma"
+                    }
+                  ]
+                },
+                "subject": {
+                  "reference": "Patient/cfsb1761835968857"
+                },
+                "effectiveDateTime": "2025-10-30",
+                "valueQuantity": {
+                  "value": 95,
+                  "unit": "U/L",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "U/L"
+                }
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836516605",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "cfsb1761836516605",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+                  "source": "#dFSFNxnEw2DptxkS"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory",
+                        "display": "Laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "1975-2",
+                      "display": "Bilirubin.total [Mass/volume] in Serum or Plasma"
+                    }
+                  ]
+                },
+                "subject": {
+                  "reference": "Patient/cfsb1761835968857"
+                },
+                "effectiveDateTime": "2025-10-30",
+                "valueQuantity": {
+                  "value": 2.1,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                }
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836470689",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "cfsb1761836470689",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+                  "source": "#dFSFNxnEw2DptxkS"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory",
+                        "display": "Laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "1742-6",
+                      "display": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma"
+                    }
+                  ]
+                },
+                "subject": {
+                  "reference": "Patient/cfsb1761835968857"
+                },
+                "effectiveDateTime": "2025-10-30",
+                "valueQuantity": {
+                  "value": 120,
+                  "unit": "U/L",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "U/L"
+                }
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794596",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794596",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "2093-3",
+                      "display": "Cholesterol [Mass/volume] in Serum or Plasma"
+                    }
+                  ],
+                  "text": "Colesterol total"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-05-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 185,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "referenceRange": [
+                  {
+                    "high": {
+                      "value": 200,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794595",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794595",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "2345-7",
+                      "display": "Glucose [Mass/volume] in Blood"
+                    }
+                  ],
+                  "text": "Glucosa en sangre"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-05-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 90,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "referenceRange": [
+                  {
+                    "low": {
+                      "value": 70,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    },
+                    "high": {
+                      "value": 110,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794597",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794597",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "777-3",
+                      "display": "Platelets [#/volume] in Blood"
+                    }
+                  ],
+                  "text": "Plaquetas"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-05-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 255,
+                  "unit": "10^3/uL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "10*3/uL"
+                },
+                "referenceRange": [
+                  {
+                    "low": {
+                      "value": 150,
+                      "unit": "10^3/uL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "10*3/uL"
+                    },
+                    "high": {
+                      "value": 400,
+                      "unit": "10^3/uL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "10*3/uL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794594",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794594",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "718-7",
+                      "display": "Hemoglobin [Mass/volume] in Blood"
+                    }
+                  ],
+                  "text": "Hemoglobina"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-05-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 14.1,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                },
+                "referenceRange": [
+                  {
+                    "low": {
+                      "value": 13,
+                      "unit": "g/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "g/dL"
+                    },
+                    "high": {
+                      "value": 17,
+                      "unit": "g/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "g/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794589",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794589",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "718-7",
+                      "display": "Hemoglobin [Mass/volume] in Blood"
+                    }
+                  ],
+                  "text": "Hemoglobina"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-04-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 14.5,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                },
+                "referenceRange": [
+                  {
+                    "low": {
+                      "value": 13,
+                      "unit": "g/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "g/dL"
+                    },
+                    "high": {
+                      "value": 17,
+                      "unit": "g/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "g/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794590",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794590",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "2345-7",
+                      "display": "Glucose [Mass/volume] in Blood"
+                    }
+                  ],
+                  "text": "Glucosa en sangre"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-04-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 99,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "referenceRange": [
+                  {
+                    "low": {
+                      "value": 70,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    },
+                    "high": {
+                      "value": 110,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            },
+            {
+              "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794591",
+              "resource": {
+                "resourceType": "Observation",
+                "id": "105794591",
+                "meta": {
+                  "versionId": "1",
+                  "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+                  "source": "#xZipezmxt7Qc7rF3"
+                },
+                "status": "final",
+                "category": [
+                  {
+                    "coding": [
+                      {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "laboratory"
+                      }
+                    ]
+                  }
+                ],
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://loinc.org",
+                      "code": "2093-3",
+                      "display": "Cholesterol [Mass/volume] in Serum or Plasma"
+                    }
+                  ],
+                  "text": "Colesterol total"
+                },
+                "subject": {
+                  "reference": "Patient/testmartin"
+                },
+                "effectiveDateTime": "2025-04-20T08:00:00Z",
+                "valueQuantity": {
+                  "value": 175,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "referenceRange": [
+                  {
+                    "high": {
+                      "value": 200,
+                      "unit": "mg/dL",
+                      "system": "http://unitsofmeasure.org",
+                      "code": "mg/dL"
+                    }
+                  }
+                ]
+              },
+              "search": {
+                "mode": "match"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2026-02-10T20:39:52.878-05:00",
+          "Readable date": "February 10th 2026, 8:39:52 pm",
+          "Readable time": "8:39:52 pm",
+          "Day of week": "Tuesday",
+          "Year": "2026",
+          "Month": "February",
+          "Day of month": "10",
+          "Hour": "20",
+          "Minute": "39",
+          "Second": "52",
+          "Timezone": "America/New_York (UTC-05:00)"
+        }
+      }
+    ],
+    "Split Lab Results": [
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836443057",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "cfsb1761836443057",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+              "source": "#dFSFNxnEw2DptxkS"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory",
+                    "display": "Laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "1920-8",
+                  "display": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma"
+                }
+              ]
+            },
+            "subject": {
+              "reference": "Patient/cfsb1761835968857"
+            },
+            "effectiveDateTime": "2025-10-30",
+            "valueQuantity": {
+              "value": 95,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836516605",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "cfsb1761836516605",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+              "source": "#dFSFNxnEw2DptxkS"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory",
+                    "display": "Laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "1975-2",
+                  "display": "Bilirubin.total [Mass/volume] in Serum or Plasma"
+                }
+              ]
+            },
+            "subject": {
+              "reference": "Patient/cfsb1761835968857"
+            },
+            "effectiveDateTime": "2025-10-30",
+            "valueQuantity": {
+              "value": 2.1,
+              "unit": "mg/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/dL"
+            }
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/cfsb1761836470689",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "cfsb1761836470689",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T14:02:11.112+00:00",
+              "source": "#dFSFNxnEw2DptxkS"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory",
+                    "display": "Laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "1742-6",
+                  "display": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma"
+                }
+              ]
+            },
+            "subject": {
+              "reference": "Patient/cfsb1761835968857"
+            },
+            "effectiveDateTime": "2025-10-30",
+            "valueQuantity": {
+              "value": 120,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794596",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794596",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2093-3",
+                  "display": "Cholesterol [Mass/volume] in Serum or Plasma"
+                }
+              ],
+              "text": "Colesterol total"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-05-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 185,
+              "unit": "mg/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/dL"
+            },
+            "referenceRange": [
+              {
+                "high": {
+                  "value": 200,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794595",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794595",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2345-7",
+                  "display": "Glucose [Mass/volume] in Blood"
+                }
+              ],
+              "text": "Glucosa en sangre"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-05-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 90,
+              "unit": "mg/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/dL"
+            },
+            "referenceRange": [
+              {
+                "low": {
+                  "value": 70,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "high": {
+                  "value": 110,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794597",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794597",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "777-3",
+                  "display": "Platelets [#/volume] in Blood"
+                }
+              ],
+              "text": "Plaquetas"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-05-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 255,
+              "unit": "10^3/uL",
+              "system": "http://unitsofmeasure.org",
+              "code": "10*3/uL"
+            },
+            "referenceRange": [
+              {
+                "low": {
+                  "value": 150,
+                  "unit": "10^3/uL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "10*3/uL"
+                },
+                "high": {
+                  "value": 400,
+                  "unit": "10^3/uL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "10*3/uL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794594",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794594",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "718-7",
+                  "display": "Hemoglobin [Mass/volume] in Blood"
+                }
+              ],
+              "text": "Hemoglobina"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-05-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 14.1,
+              "unit": "g/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "g/dL"
+            },
+            "referenceRange": [
+              {
+                "low": {
+                  "value": 13,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                },
+                "high": {
+                  "value": 17,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794589",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794589",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "718-7",
+                  "display": "Hemoglobin [Mass/volume] in Blood"
+                }
+              ],
+              "text": "Hemoglobina"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-04-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 14.5,
+              "unit": "g/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "g/dL"
+            },
+            "referenceRange": [
+              {
+                "low": {
+                  "value": 13,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                },
+                "high": {
+                  "value": 17,
+                  "unit": "g/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "g/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794590",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794590",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2345-7",
+                  "display": "Glucose [Mass/volume] in Blood"
+                }
+              ],
+              "text": "Glucosa en sangre"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-04-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 99,
+              "unit": "mg/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/dL"
+            },
+            "referenceRange": [
+              {
+                "low": {
+                  "value": 70,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                },
+                "high": {
+                  "value": 110,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      },
+      {
+        "json": {
+          "fullUrl": "https://hapi.fhir.org/baseR4/Observation/105794591",
+          "resource": {
+            "resourceType": "Observation",
+            "id": "105794591",
+            "meta": {
+              "versionId": "1",
+              "lastUpdated": "2026-02-10T17:48:06.615+00:00",
+              "source": "#xZipezmxt7Qc7rF3"
+            },
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "laboratory"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://loinc.org",
+                  "code": "2093-3",
+                  "display": "Cholesterol [Mass/volume] in Serum or Plasma"
+                }
+              ],
+              "text": "Colesterol total"
+            },
+            "subject": {
+              "reference": "Patient/testmartin"
+            },
+            "effectiveDateTime": "2025-04-20T08:00:00Z",
+            "valueQuantity": {
+              "value": 175,
+              "unit": "mg/dL",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/dL"
+            },
+            "referenceRange": [
+              {
+                "high": {
+                  "value": 200,
+                  "unit": "mg/dL",
+                  "system": "http://unitsofmeasure.org",
+                  "code": "mg/dL"
+                }
+              }
+            ]
+          },
+          "search": {
+            "mode": "match"
+          }
+        }
+      }
+    ],
+    "Fetch Missing References": [
+      {
+        "json": {
+          "observation_id": "cfsb1761836443057",
+          "loinc_code": "1920-8",
+          "test_name": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "95",
+          "result_unit": "U/L",
+          "status": "final",
+          "reference_low": 10,
+          "reference_high": 40,
+          "has_reference_range": true
+        }
+      },
+      {
+        "json": {
+          "observation_id": "cfsb1761836516605",
+          "loinc_code": "1975-2",
+          "test_name": "Bilirubin.total [Mass/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "2.1",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": 0.1,
+          "reference_high": 1.2,
+          "has_reference_range": true
+        }
+      },
+      {
+        "json": {
+          "observation_id": "cfsb1761836470689",
+          "loinc_code": "1742-6",
+          "test_name": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "120",
+          "result_unit": "U/L",
+          "status": "final",
+          "reference_low": 7,
+          "reference_high": 56,
+          "has_reference_range": true
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794596",
+          "loinc_code": "2093-3",
+          "test_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "185",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": "200",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794595",
+          "loinc_code": "2345-7",
+          "test_name": "Glucose [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "90",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": "70",
+          "reference_high": "110",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794597",
+          "loinc_code": "777-3",
+          "test_name": "Platelets [#/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "255",
+          "result_unit": "10^3/uL",
+          "status": "final",
+          "reference_low": "150",
+          "reference_high": "400",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794594",
+          "loinc_code": "718-7",
+          "test_name": "Hemoglobin [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "14.1",
+          "result_unit": "g/dL",
+          "status": "final",
+          "reference_low": "13",
+          "reference_high": "17",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794589",
+          "loinc_code": "718-7",
+          "test_name": "Hemoglobin [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "14.5",
+          "result_unit": "g/dL",
+          "status": "final",
+          "reference_low": "13",
+          "reference_high": "17",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794590",
+          "loinc_code": "2345-7",
+          "test_name": "Glucose [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "99",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": "70",
+          "reference_high": "110",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794591",
+          "loinc_code": "2093-3",
+          "test_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "175",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": "200",
+          "has_reference_range": "true"
+        }
+      }
+    ],
+    "Edit Fields": [
+      {
+        "json": {
+          "observation_id": "cfsb1761836443057",
+          "loinc_code": "1920-8",
+          "test_name": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "95",
+          "result_unit": "U/L",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": null,
+          "has_reference_range": "false"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "cfsb1761836516605",
+          "loinc_code": "1975-2",
+          "test_name": "Bilirubin.total [Mass/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "2.1",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": null,
+          "has_reference_range": "false"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "cfsb1761836470689",
+          "loinc_code": "1742-6",
+          "test_name": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+          "patient_id": "cfsb1761835968857",
+          "test_date": "2025-10-30",
+          "result_value": "120",
+          "result_unit": "U/L",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": null,
+          "has_reference_range": "false"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794596",
+          "loinc_code": "2093-3",
+          "test_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "185",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": "200",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794595",
+          "loinc_code": "2345-7",
+          "test_name": "Glucose [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "90",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": "70",
+          "reference_high": "110",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794597",
+          "loinc_code": "777-3",
+          "test_name": "Platelets [#/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "255",
+          "result_unit": "10^3/uL",
+          "status": "final",
+          "reference_low": "150",
+          "reference_high": "400",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794594",
+          "loinc_code": "718-7",
+          "test_name": "Hemoglobin [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-05-20T08:00:00Z",
+          "result_value": "14.1",
+          "result_unit": "g/dL",
+          "status": "final",
+          "reference_low": "13",
+          "reference_high": "17",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794589",
+          "loinc_code": "718-7",
+          "test_name": "Hemoglobin [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "14.5",
+          "result_unit": "g/dL",
+          "status": "final",
+          "reference_low": "13",
+          "reference_high": "17",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794590",
+          "loinc_code": "2345-7",
+          "test_name": "Glucose [Mass/volume] in Blood",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "99",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": "70",
+          "reference_high": "110",
+          "has_reference_range": "true"
+        }
+      },
+      {
+        "json": {
+          "observation_id": "105794591",
+          "loinc_code": "2093-3",
+          "test_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+          "patient_id": "testmartin",
+          "test_date": "2025-04-20T08:00:00Z",
+          "result_value": "175",
+          "result_unit": "mg/dL",
+          "status": "final",
+          "reference_low": null,
+          "reference_high": "200",
+          "has_reference_range": "true"
+        }
+      }
+    ],
+    "Message a model": [
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_0ae6929fbf9b4ddf00698bed6177948196a54f1c88977dfb7a",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "ABNORMAL_NON_CRITICAL",
+                    "severity_score": 6,
+                    "clinical_note": "Your aspartate aminotransferase (AST) level is elevated, which may indicate liver stress or damage. It's important to follow up with your healthcare provider for further evaluation.",
+                    "provider_note": "AST level of 95 U/L is significantly above the reference range (10 - 40 U/L). Consider evaluating for potential liver pathology or other causes of elevated AST.",
+                    "action_required": "Recommend further diagnostic testing and clinical correlation to determine the underlying cause of the elevated AST level."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_04a47f73c80d534100698bed662c0081958f03d0dfa44aa446",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "ABNORMAL_NON_CRITICAL",
+                    "severity_score": 4,
+                    "clinical_note": "Your bilirubin level is slightly elevated, which may indicate liver function issues or other conditions. It's important to follow up with your healthcare provider for further evaluation.",
+                    "provider_note": "Bilirubin level of 2.1 mg/dL is above the reference range (0.1 - 1.2 mg/dL). Consider evaluating for potential causes such as liver disease, hemolysis, or biliary obstruction.",
+                    "action_required": "Schedule a follow-up appointment for further assessment and possible additional testing."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_03a9c71185f9962b00698bed6b0f908193a82be770273899aa",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "ABNORMAL_NON_CRITICAL",
+                    "severity_score": 6,
+                    "clinical_note": "Your alanine aminotransferase (ALT) level is elevated, which may indicate liver stress or damage. It's important to follow up with your healthcare provider for further evaluation.",
+                    "provider_note": "ALT level of 120 U/L is significantly above the reference range (7 - 56 U/L). Consider evaluating for potential liver disease, medication effects, or other underlying conditions.",
+                    "action_required": "Recommend further diagnostic testing and clinical correlation to determine the underlying cause of the elevated ALT level."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_0b829f83ebf4ced500698bed6f8f2c819f82163b0df7203db6",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your cholesterol level is within the normal range, which is a positive indicator for your heart health.",
+                    "provider_note": "Cholesterol level of 185 mg/dL is within the acceptable range, indicating no immediate concerns.",
+                    "action_required": "Continue regular health check-ups and maintain a healthy lifestyle."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_0365fd9dc04c915500698bed7195008193894a96d63fd264b8",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your glucose level is within the normal range, indicating good blood sugar control.",
+                    "provider_note": "Glucose level of 90 mg/dL is well within the reference range of 70 - 110 mg/dL.",
+                    "action_required": "No immediate action required; continue regular monitoring."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_07ae2c5e0085781900698bed74e18481a1a431be2f43e2df79",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your platelet count is within the normal range, indicating healthy blood clotting function.",
+                    "provider_note": "Platelet count of 255 10^3/uL is within the reference range of 150 - 400 10^3/uL. No further action is required based on this result.",
+                    "action_required": "No immediate action required; routine monitoring is sufficient."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_051d10bd3f025ec500698bed788944819c8110b7222431fbca",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your hemoglobin level is within the normal range, indicating adequate oxygen-carrying capacity in your blood.",
+                    "provider_note": "Hemoglobin level of 14.1 g/dL is within the reference range of 13 - 17 g/dL. No further action is required at this time.",
+                    "action_required": "No immediate action required; routine monitoring is sufficient."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_0aceef6f1d711c0400698bed7abdec8195897d2e637872873f",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your hemoglobin level is within the normal range, indicating adequate oxygen-carrying capacity in your blood.",
+                    "provider_note": "Hemoglobin level of 14.5 g/dL is within the reference range of 13 - 17 g/dL, indicating no immediate concerns.",
+                    "action_required": "No action required; continue routine monitoring."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_00f2c37c3b68ec8100698bed7fd494819e87bdad8df058f483",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your glucose level is within the normal range, indicating good blood sugar control.",
+                    "provider_note": "Glucose level of 99 mg/dL is within the reference range of 70 - 110 mg/dL. No immediate action required.",
+                    "action_required": "Continue regular monitoring and maintain a healthy lifestyle."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_0ba990284520341f00698bed824d4881a2a2ffe3c3d96327bd",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "classification": "NORMAL",
+                    "severity_score": 1,
+                    "clinical_note": "Your cholesterol level is within the normal range, indicating a healthy level of cholesterol in your blood.",
+                    "provider_note": "Cholesterol level of 175 mg/dL is within the acceptable range, suggesting no immediate concerns regarding lipid levels.",
+                    "action_required": "Continue with regular health check-ups and maintain a balanced diet."
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch FHIR Observations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FHIR Observations": {
+      "main": [
+        [
+          {
+            "node": "Split Lab Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Lab Results": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Fetch Missing References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Missing References": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Merge Lab Data with AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7602f376-eb61-43c0-ad06-1d752b7a2906",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "g1MfwJws709EPp52",
+  "tags": []
+}

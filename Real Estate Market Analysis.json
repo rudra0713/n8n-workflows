@@ -1,0 +1,1870 @@
+{
+  "name": "Real Estate Market Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3ab7ff0f-d46b-41fb-aff6-ceabadf832fd",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://real-estate101.p.rapidapi.com/api/search/byurl",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.seattle_capitol_hill_url }}"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "real-estate101.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "77589dee6cmsh6e2f196cc64f10ap1d3844jsna64b2ef1efcd"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "03fa4436-bae2-4ecd-a137-cb87086003be",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cf38776f-ce3b-43d9-bc5f-265215326c47",
+              "name": "seattle_capitol_hill_url",
+              "value": "https://www.zillow.com/seattle-wa/capitol-hill/?searchQueryState=%7B%22isMapVisible%22%3Atrue%2C%22mapBounds%22%3A%7B%22north%22%3A47.636%2C%22south%22%3A47.614%2C%22east%22%3A-122.307%2C%22west%22%3A-122.334%7D%2C%22filterState%22%3A%7B%22sort%22%3A%7B%22value%22%3A%22days%22%7D%7D%2C%22isListVisible%22%3Atrue%7D",
+              "type": "string"
+            },
+            {
+              "id": "6c45bb31-e1f1-487f-8ad2-16f6e1f57ad4",
+              "name": "current_date",
+              "value": "={{ $now.format('yyyy-MM-dd') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9de4907d-910b-4dee-a655-88d5475deec1",
+      "name": "Set"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the Zillow API response\nconst zillowData = $input.first().json;\nconst currentDate = $('Set').item.json.current_date;\n\n// Check if we have results\nif (!zillowData.results || zillowData.results.length === 0) {\n  return [{\n    json: {\n      error: 'No results from Zillow API',\n      date: currentDate\n    }\n  }];\n}\n\n// Helper functions\nconst median = (arr) => {\n  if (arr.length === 0) return 0;\n  const sorted = [...arr].sort((a, b) => a - b);\n  const mid = Math.floor(sorted.length / 2);\n  return sorted.length % 2 === 0 \n    ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)\n    : sorted[mid];\n};\n\nconst avg = (arr) => {\n  if (arr.length === 0) return 0;\n  return Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);\n};\n\n// Extract data from properties\nconst properties = zillowData.results;\nconst prices = [];\nconst pricesPerSqft = [];\nconst daysOnMarket = [];\n\nfor (const prop of properties) {\n  // Skip if missing critical data\n  if (!prop.unformattedPrice || !prop.livingArea || prop.livingArea === 0) {\n    continue;\n  }\n  \n  prices.push(prop.unformattedPrice);\n  pricesPerSqft.push(Math.round(prop.unformattedPrice / prop.livingArea));\n  \n  // Use daysOnZillow if available\n  if (prop.daysOnZillow !== undefined) {\n    daysOnMarket.push(prop.daysOnZillow);\n  }\n}\n\n// Calculate metrics\nconst metrics = {\n  date: currentDate,\n  area: 'Seattle Capitol Hill',\n  avg_price: avg(prices),\n  avg_price_per_sqft: avg(pricesPerSqft),\n  median_days_on_market: median(daysOnMarket),\n  active_inventory: properties.length,\n  total_properties_analyzed: prices.length\n};\n\n// Return the calculated metrics\nreturn [{ json: metrics }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "99f058eb-49e5-48fa-a027-759cc77ea0fa",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU",
+          "mode": "list",
+          "cachedResultName": "Seattle Market Intelligence",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "area",
+              "displayName": "area",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "avg_price",
+              "displayName": "avg_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "avg_price_per_sqft",
+              "displayName": "avg_price_per_sqft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "median_days_on_market",
+              "displayName": "median_days_on_market",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "active_inventory",
+              "displayName": "active_inventory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_properties_analyzed",
+              "displayName": "total_properties_analyzed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        832,
+        0
+      ],
+      "id": "48aaf59f-9ef7-4d2c-84db-0936ad40c0fb",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU",
+          "mode": "list",
+          "cachedResultName": "Seattle Market Intelligence",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1BEGTkB_KopLyjgGDsGbaQ9n7C6JtlyW5v7EmmQPfxMU/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "6292ca15-eeec-416d-a51d-111c13c3c35c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all historical data from Google Sheets\nconst allData = $input.all();\n\n// Check if we have any data\nif (allData.length === 0) {\n  return [{\n    json: {\n      error: 'No historical data found',\n      is_first_week: true\n    }\n  }];\n}\n\n// Get the last 2 rows (most recent data)\n// If we only have 1 row, we're in the first week\nconst sortedData = allData.sort((a, b) => a.json.row_number - b.json.row_number);\nconst lastTwoRows = sortedData.slice(-2);\n\n// Check if this is the first week (only 1 data point)\nif (lastTwoRows.length === 1) {\n  return [{\n    json: {\n      area: lastTwoRows[0].json.area,\n      this_week: lastTwoRows[0].json,\n      last_week: null,\n      changes: null,\n      trend: 'NEW - First week of tracking',\n      is_first_week: true\n    }\n  }];\n}\n\n// We have at least 2 weeks of data - compare them\nconst lastWeek = lastTwoRows[0].json;\nconst thisWeek = lastTwoRows[1].json;\n\n// Calculate percentage changes\nconst priceChange = ((thisWeek.avg_price - lastWeek.avg_price) / lastWeek.avg_price * 100).toFixed(1);\nconst pricePerSqftChange = ((thisWeek.avg_price_per_sqft - lastWeek.avg_price_per_sqft) / lastWeek.avg_price_per_sqft * 100).toFixed(1);\nconst domChange = ((thisWeek.median_days_on_market - lastWeek.median_days_on_market) / lastWeek.median_days_on_market * 100).toFixed(1);\nconst inventoryChange = ((thisWeek.active_inventory - lastWeek.active_inventory) / lastWeek.active_inventory * 100).toFixed(1);\n\n// Determine market trend\nlet trend = 'STABLE';\nif (pricePerSqftChange < -3 || domChange > 20 || inventoryChange > 15) {\n  trend = 'COOLING';\n} else if (pricePerSqftChange > 3 || domChange < -20 || inventoryChange < -15) {\n  trend = 'HEATING';\n}\n\n// Return comparison\nreturn [{\n  json: {\n    area: thisWeek.area,\n    this_week: {\n      date: thisWeek.date,\n      avg_price: thisWeek.avg_price,\n      avg_price_per_sqft: thisWeek.avg_price_per_sqft,\n      median_days_on_market: thisWeek.median_days_on_market,\n      active_inventory: thisWeek.active_inventory\n    },\n    last_week: {\n      date: lastWeek.date,\n      avg_price: lastWeek.avg_price,\n      avg_price_per_sqft: lastWeek.avg_price_per_sqft,\n      median_days_on_market: lastWeek.median_days_on_market,\n      active_inventory: lastWeek.active_inventory\n    },\n    changes: {\n      price_change_pct: parseFloat(priceChange),\n      price_per_sqft_change_pct: parseFloat(pricePerSqftChange),\n      dom_change_pct: parseFloat(domChange),\n      inventory_change_pct: parseFloat(inventoryChange)\n    },\n    trend: trend,\n    is_first_week: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "6846c75b-6dde-4828-b6f8-24adcf73c8ae",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Based on the following Seattle Capitol Hill real estate market data, generate a brief market intelligence summary:\n\n{{ JSON.stringify($json, null, 2) }}\n\nIf this is the first week of tracking (is_first_week: true), simply acknowledge that tracking has started and summarize the current market baseline.\n\nIf comparison data exists, provide:\n1. Overall market trend (2-3 sentences)\n2. Key changes and what they mean for agents\n3. Actionable pricing recommendations\n\nKeep it concise and professional. Use percentages from the changes object. Do not use markdown formatting or emojis. Return ONLY the summary text, no JSON wrapper."
+            },
+            {
+              "role": "system",
+              "content": "You are a real estate market analyst. Generate concise, actionable market intelligence reports for real estate agents based on week-over-week data."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "3a9da51a-489b-4fe4-aadf-5d3aef54b8d5",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the OpenAI response\nconst input = $input.first().json;\n\nlet reportText = '';\n\n// Try multiple possible structures\nif (typeof input === 'string') {\n  // If it's already a string\n  reportText = input;\n} else if (input.output && Array.isArray(input.output)) {\n  // Nested structure (what you got earlier)\n  const content = input.output[0]?.content;\n  if (Array.isArray(content)) {\n    reportText = content[0]?.text || '';\n  }\n} else if (input.content && Array.isArray(input.content)) {\n  // Another possible structure\n  reportText = input.content[0]?.text || '';\n} else if (input.text) {\n  // Direct text field\n  reportText = input.text;\n} else if (input.summary) {\n  // Structured output format\n  reportText = input.summary;\n} else if (input.message && input.message.content) {\n  // Yet another possible format\n  reportText = input.message.content;\n}\n\n// Fallback\nif (!reportText) {\n  reportText = JSON.stringify(input, null, 2);\n}\n\n// Return clean text\nreturn [{\n  json: {\n    report: reportText,\n    date: new Date().toISOString().split('T')[0]\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        0
+      ],
+      "id": "2e012047-c930-4d4b-b137-6a1fb866e472",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "chatId": "7977309532",
+        "text": "=📊 *SEATTLE CAPITOL HILL MARKET REPORT*\nDate: {{ $json.date }}\n\n{{ $json.report }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2016,
+        0
+      ],
+      "id": "1c00e6e7-d2dc-4496-8546-4bde4bb88af8",
+      "name": "Send a text message",
+      "webhookId": "9ede2383-6bc6-4cb2-b627-84e16584955a",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "HTTP Request": [
+      {
+        "json": {
+          "success": true,
+          "totalCount": 87,
+          "currentPage": "1",
+          "results": [
+            {
+              "id": "459989994",
+              "price": "$849,950",
+              "unformattedPrice": 849950,
+              "beds": 3,
+              "baths": 2,
+              "area": 1526,
+              "livingArea": 1526,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 32300000,
+              "lotAreaValue": 1576.872,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1525 19th Avenue #A",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.61493,
+                "longitude": -122.30798
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/b46f00098fffb8e5550869859cb5f44a-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1525-19th-Ave-A-Seattle-WA-98122/459989994_zpid/",
+              "daysOnZillow": 0
+            },
+            {
+              "id": "48779591",
+              "price": "$3,940,000",
+              "unformattedPrice": 3940000,
+              "beds": 3,
+              "baths": 3,
+              "area": 2860,
+              "livingArea": 2860,
+              "homeType": "SINGLE_FAMILY",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 5647,
+              "listingSubType": {
+                "is_FSBA": true,
+                "is_openHouse": true
+              },
+              "timeOnZillow": 90798000,
+              "taxAssessedValue": 2227000,
+              "lotAreaValue": 4486.68,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1527 E Howe Street",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98112"
+              },
+              "latLong": {
+                "latitude": 47.63587,
+                "longitude": -122.3124
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/0051e0101ac797c21cf4ab071527f19b-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1527-E-Howe-St-Seattle-WA-98112/48779591_zpid/",
+              "daysOnZillow": 1,
+              "zestimate": 3921900
+            },
+            {
+              "id": "49095483",
+              "price": "$515,000",
+              "unformattedPrice": 515000,
+              "beds": 2,
+              "baths": 1,
+              "area": 887,
+              "livingArea": 887,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2752,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 355094000,
+              "taxAssessedValue": 418000,
+              "lotAreaValue": 10014.444,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "630 13th Avenue E #3",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.625217,
+                "longitude": -122.31538
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/98ce6dd45df3775311d097b22c51054c-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/630-13th-Ave-E-APT-3-Seattle-WA-98102/49095483_zpid/",
+              "daysOnZillow": 4,
+              "zestimate": 501400
+            },
+            {
+              "id": "2112466432",
+              "price": "$362,500",
+              "unformattedPrice": 362500,
+              "beds": 2,
+              "baths": 1,
+              "area": 821,
+              "livingArea": 821,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2614,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 364102000,
+              "has3DModel": false,
+              "address": {
+                "street": "1700 Bellevue Avenue #301",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.61649,
+                "longitude": -122.32643
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/790a313b2a9449016dafbb7c42b33846-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1700-Bellevue-Ave-UNIT-301-Seattle-WA-98122/2112466432_zpid/",
+              "daysOnZillow": 4,
+              "zestimate": 359800
+            },
+            {
+              "id": "455127743",
+              "price": "$1,125,950",
+              "unformattedPrice": 1125950,
+              "beds": 3,
+              "baths": 3,
+              "area": 1622,
+              "livingArea": 1622,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4198,
+              "listingSubType": {
+                "is_newHome": true,
+                "is_openHouse": true
+              },
+              "timeOnZillow": 435206000,
+              "lotAreaValue": 736.164,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1715 17th Avenue",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.616776,
+                "longitude": -122.31028
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/e4aab51bb6bf868c26f79575d5281e15-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1715-17th-Ave-Seattle-WA-98122/455127743_zpid/",
+              "daysOnZillow": 5,
+              "zestimate": 1121700
+            },
+            {
+              "id": "2108616308",
+              "price": "$279,950",
+              "unformattedPrice": 279950,
+              "beds": 1,
+              "baths": 1,
+              "area": 520,
+              "livingArea": 520,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1826,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 525498000,
+              "has3DModel": false,
+              "address": {
+                "street": "1726 15th Avenue #14",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.617287,
+                "longitude": -122.31238
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/82bb074887718e8ed7823eefd863a611-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1726-15th-Ave-APT-14-Seattle-WA-98122/2108616308_zpid/",
+              "daysOnZillow": 6,
+              "zestimate": 273100
+            },
+            {
+              "id": "2077321882",
+              "price": "$250,000",
+              "unformattedPrice": 250000,
+              "beds": 1,
+              "baths": 1,
+              "area": 450,
+              "livingArea": 450,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1698,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 618206000,
+              "lotAreaValue": 4408.272,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "115 Bellevue Avenue E #105",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.618797,
+                "longitude": -122.32706
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/46e4ef6d50119aa0f3ecc9ed3f23887b-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/115-Bellevue-Ave-E-APT-105-Seattle-WA-98102/2077321882_zpid/",
+              "daysOnZillow": 7,
+              "zestimate": 243700
+            },
+            {
+              "id": "48819594",
+              "price": "$415,000",
+              "unformattedPrice": 415000,
+              "beds": 1,
+              "baths": 1,
+              "area": 634,
+              "livingArea": 634,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2119,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 717812000,
+              "taxAssessedValue": 382000,
+              "has3DModel": false,
+              "address": {
+                "street": "232 Belmont Avenue E #202",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62059,
+                "longitude": -122.32369
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/aa4763084b82f94239bb300f4f17d8ac-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/232-Belmont-Ave-E-APT-202-Seattle-WA-98102/48819594_zpid/",
+              "daysOnZillow": 8,
+              "zestimate": 407100
+            },
+            {
+              "id": "49147771",
+              "price": "$2,400,000",
+              "unformattedPrice": 2400000,
+              "beds": 4,
+              "baths": 4,
+              "area": 2970,
+              "livingArea": 2970,
+              "homeType": "SINGLE_FAMILY",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 954501000,
+              "taxAssessedValue": 1775000,
+              "lotAreaValue": 5000.688,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "907 Broadway E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62713,
+                "longitude": -122.32162
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/c01eb0137bcc23f4a62c31035c1cfac5-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/907-Broadway-E-Seattle-WA-98102/49147771_zpid/",
+              "daysOnZillow": 11
+            },
+            {
+              "id": "80118979",
+              "price": "$938,000",
+              "unformattedPrice": 938000,
+              "beds": 2,
+              "baths": 3,
+              "area": 1540,
+              "livingArea": 1540,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1061322000,
+              "taxAssessedValue": 976000,
+              "lotAreaValue": 958.32,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1810 11th Avenue #A",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.61793,
+                "longitude": -122.31764
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/ff7a4af8e41c9bed9840b4975dfb3a30-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1810-11th-Ave-A-Seattle-WA-98122/80118979_zpid/",
+              "daysOnZillow": 12
+            },
+            {
+              "id": "333449236",
+              "price": "$299,950",
+              "unformattedPrice": 299950,
+              "baths": 1,
+              "area": 310,
+              "livingArea": 310,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1869,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1631026000,
+              "taxAssessedValue": 249000,
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Avenue #500",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.6172,
+                "longitude": -122.3306
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/ceb62fc89de54976eaaa2764c6638ff1-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Ave-500-Seattle-WA-98101/333449236_zpid/",
+              "daysOnZillow": 18,
+              "zestimate": 298400
+            },
+            {
+              "id": "88876768",
+              "price": "$549,950",
+              "unformattedPrice": 549950,
+              "beds": 1,
+              "baths": 2,
+              "area": 814,
+              "livingArea": 814,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2808,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1660107000,
+              "taxAssessedValue": 539000,
+              "has3DModel": true,
+              "address": {
+                "street": "530 Broadway E #114",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.623898,
+                "longitude": -122.320404
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/1b3e9b551e1fcac70d93af115b8a689b-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/530-Broadway-E-APT-114-Seattle-WA-98102/88876768_zpid/",
+              "daysOnZillow": 19,
+              "zestimate": 538700
+            },
+            {
+              "id": "49011345",
+              "price": "$1,239,900",
+              "unformattedPrice": 1239900,
+              "beds": 3,
+              "baths": 2,
+              "area": 1895,
+              "livingArea": 1895,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 5319,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 1664619000,
+              "taxAssessedValue": 796000,
+              "lotAreaValue": 1089,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "505 11th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.623283,
+                "longitude": -122.31812
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2cd2ae7fe59bfc790398ce68b161bb36-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/505-11th-Ave-E-Seattle-WA-98102/49011345_zpid/",
+              "daysOnZillow": 19,
+              "zestimate": 1228600
+            },
+            {
+              "id": "459641021",
+              "price": "$850,000",
+              "unformattedPrice": 850000,
+              "beds": 3,
+              "baths": 3,
+              "area": 1590,
+              "livingArea": 1590,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4433,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1669422000,
+              "lotAreaValue": 601.128,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1827 14th Avenue #B",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.618404,
+                "longitude": -122.31477
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/93219d2d599c771ccba48e18bc31b088-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1827-14th-Ave-B-Seattle-WA-98122/459641021_zpid/",
+              "daysOnZillow": 19,
+              "zestimate": 847400
+            },
+            {
+              "id": "459629196",
+              "price": "$1,029,950",
+              "unformattedPrice": 1029950,
+              "beds": 3,
+              "baths": 3,
+              "area": 1667,
+              "livingArea": 1667,
+              "homeType": "SINGLE_FAMILY",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4753,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 1729721000,
+              "lotAreaValue": 1537.668,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "313 17th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98112"
+              },
+              "latLong": {
+                "latitude": 47.620964,
+                "longitude": -122.31044
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/f51cc6c117f86073fe971e3b5d9bc438-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/313-17th-Ave-E-Seattle-WA-98112/459629196_zpid/",
+              "daysOnZillow": 20,
+              "zestimate": 1026600
+            },
+            {
+              "id": "2099724157",
+              "price": "$289,950",
+              "unformattedPrice": 289950,
+              "baths": 1,
+              "area": 545,
+              "livingArea": 545,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1886,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1746814000,
+              "has3DModel": false,
+              "address": {
+                "street": "1732 15th Avenue #27",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.617447,
+                "longitude": -122.31238
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/cd6b437f5cf8b428c9e462b1e9eb426e-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1732-15th-Ave-APT-27-Seattle-WA-98122/2099724157_zpid/",
+              "daysOnZillow": 20,
+              "zestimate": 284100
+            },
+            {
+              "id": "49089725",
+              "price": "$400,000",
+              "unformattedPrice": 400000,
+              "beds": 1,
+              "baths": 1,
+              "area": 650,
+              "livingArea": 650,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2188,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1748937000,
+              "taxAssessedValue": 322000,
+              "has3DModel": false,
+              "address": {
+                "street": "512 10th Avenue E #3",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62367,
+                "longitude": -122.31957
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/dd12867f0bcdb8f0616dd7408dae7184-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/512-10th-Ave-E-APT-3-Seattle-WA-98102/49089725_zpid/",
+              "daysOnZillow": 20,
+              "zestimate": 389600
+            },
+            {
+              "id": "48999668",
+              "price": "$275,000",
+              "unformattedPrice": 275000,
+              "baths": 1,
+              "area": 445,
+              "livingArea": 445,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1764824000,
+              "taxAssessedValue": 303000,
+              "has3DModel": false,
+              "address": {
+                "street": "1616 Summit Avenue #N203",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.615917,
+                "longitude": -122.32521
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/c2b21beb6cf4aac4b5232e09548c35f3-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1616-Summit-Ave-APT-N203-Seattle-WA-98122/48999668_zpid/",
+              "daysOnZillow": 20
+            },
+            {
+              "id": "332975374",
+              "price": "$1,099,900",
+              "unformattedPrice": 1099900,
+              "beds": 2,
+              "baths": 2,
+              "area": 1056,
+              "livingArea": 1056,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1809213000,
+              "taxAssessedValue": 935000,
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Avenue #2308",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.6172,
+                "longitude": -122.3306
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/03809f02071fd4622dbda406cfb1aa1f-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Ave-2308-Seattle-WA-98101/332975374_zpid/",
+              "daysOnZillow": 20
+            },
+            {
+              "id": "2068246409",
+              "price": "$329,000",
+              "unformattedPrice": 329000,
+              "beds": 1,
+              "baths": 1,
+              "area": 664,
+              "livingArea": 664,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2005,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1824222000,
+              "has3DModel": false,
+              "address": {
+                "street": "308 E Republican Street #508",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.623543,
+                "longitude": -122.32727
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2642ca9f0e57637b68e0dcc8261e948d-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/308-E-Republican-St-APT-508-Seattle-WA-98102/2068246409_zpid/",
+              "daysOnZillow": 21,
+              "zestimate": 321600
+            },
+            {
+              "id": "63925468",
+              "price": "$1,150,000",
+              "unformattedPrice": 1150000,
+              "beds": 2,
+              "baths": 3,
+              "area": 1161,
+              "livingArea": 1161,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1827502000,
+              "taxAssessedValue": 1147000,
+              "has3DModel": false,
+              "address": {
+                "street": "726 Boylston Avenue E #9",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62567,
+                "longitude": -122.323166
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/46125fe8c36441a50ad24d2616611530-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/726-Boylston-Ave-E-APT-9-Seattle-WA-98102/63925468_zpid/",
+              "daysOnZillow": 21
+            },
+            {
+              "id": "2057391752",
+              "price": "$429,950",
+              "unformattedPrice": 429950,
+              "baths": 1,
+              "area": 430,
+              "livingArea": 430,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2192,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 1931927000,
+              "taxAssessedValue": 415000,
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Avenue #3409",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.6172,
+                "longitude": -122.3306
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/587435ebc810b03b3fb280b3e0b521a1-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Ave-3409-Seattle-WA-98101/2057391752_zpid/",
+              "daysOnZillow": 22,
+              "zestimate": 425200
+            },
+            {
+              "id": "63925464",
+              "price": "$1,045,000",
+              "unformattedPrice": 1045000,
+              "beds": 2,
+              "baths": 3,
+              "area": 1161,
+              "livingArea": 1161,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true,
+                "is_openHouse": true
+              },
+              "timeOnZillow": 2183641000,
+              "taxAssessedValue": 1137000,
+              "has3DModel": false,
+              "address": {
+                "street": "726 Boylston Avenue E #5",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62567,
+                "longitude": -122.323166
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/1f4ce782628664a750194556616a74af-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/726-Boylston-Ave-E-APT-5-Seattle-WA-98102/63925464_zpid/",
+              "daysOnZillow": 25
+            },
+            {
+              "id": "459379736",
+              "price": "$1,200,000",
+              "unformattedPrice": 1200000,
+              "beds": 2,
+              "baths": 3,
+              "area": 1392,
+              "livingArea": 1392,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4927,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 2674124000,
+              "lotAreaValue": 7318.08,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1114 Lakeview Boulevard E #E 3N",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.62963,
+                "longitude": -122.32518
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/a5afb80febb9c0b9d277bf5e0d478b41-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1114-Lakeview-Blvd-E-E-3N-Seattle-WA-98102/459379736_zpid/",
+              "daysOnZillow": 30,
+              "zestimate": 1171100
+            },
+            {
+              "id": "2068222405",
+              "price": "$1,699,950",
+              "unformattedPrice": 1699950,
+              "beds": 8,
+              "baths": 6,
+              "area": 4680,
+              "livingArea": 4680,
+              "homeType": "MULTI_FAMILY",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 3274,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 2953714000,
+              "lotAreaValue": 5401.44,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "317 17th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98112"
+              },
+              "latLong": {
+                "latitude": 47.62108,
+                "longitude": -122.31044
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/03371092e055f6c2dde7c190f7c039e0-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/317-17th-Ave-E-Seattle-WA-98112/2068222405_zpid/",
+              "daysOnZillow": 34,
+              "zestimate": 1642900
+            },
+            {
+              "id": "48943547",
+              "price": "$0",
+              "unformattedPrice": 0,
+              "beds": 1,
+              "baths": 1,
+              "area": 731,
+              "livingArea": 731,
+              "homeType": "CONDO",
+              "marketingStatus": "Non Owner Occupied",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2043,
+              "listingSubType": {
+                "is_forAuction": true
+              },
+              "timeOnZillow": 3311245000,
+              "taxAssessedValue": 333000,
+              "lotAreaValue": 0.48,
+              "lotAreaUnit": "acres",
+              "has3DModel": false,
+              "address": {
+                "street": "1740 Melrose Ave Unit 403",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.61813,
+                "longitude": -122.32754
+              },
+              "statusText": "Auction",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2c39c3675a37f8a75acbbb8e124be2f6-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1740-Melrose-Ave-UNIT-403-Seattle-WA-98122/48943547_zpid/",
+              "daysOnZillow": 38,
+              "zestimate": 308400
+            },
+            {
+              "id": "459114886",
+              "price": "$995,950",
+              "unformattedPrice": 995950,
+              "beds": 3,
+              "baths": 2,
+              "area": 1502,
+              "livingArea": 1502,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 3974,
+              "listingSubType": {
+                "is_newHome": true,
+                "is_openHouse": true
+              },
+              "timeOnZillow": 3541711000,
+              "lotAreaValue": 805.86,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "1733 17th Avenue",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.617344,
+                "longitude": -122.31028
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/c8e637853cc12773bb8f3efc308261ad-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1733-17th-Ave-Seattle-WA-98122/459114886_zpid/",
+              "daysOnZillow": 40,
+              "zestimate": 992500
+            },
+            {
+              "id": "72494901",
+              "price": "$379,000",
+              "unformattedPrice": 379000,
+              "beds": 1,
+              "baths": 2,
+              "area": 572,
+              "livingArea": 572,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1989,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 3638015000,
+              "taxAssessedValue": 323000,
+              "has3DModel": false,
+              "address": {
+                "street": "711 E Denny Way #104",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.618477,
+                "longitude": -122.323135
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/41ca7c2dfce40c516daf800d906cdd70-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/711-E-Denny-Way-UNIT-104-Seattle-WA-98122/72494901_zpid/",
+              "daysOnZillow": 42,
+              "zestimate": 371900
+            },
+            {
+              "id": "448903739",
+              "price": "$899,950",
+              "unformattedPrice": 899950,
+              "beds": 3,
+              "baths": 2,
+              "area": 1485,
+              "livingArea": 1485,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4845,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 3990215000,
+              "taxAssessedValue": 716000,
+              "lotAreaValue": 574.992,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "730 A Broadway E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.625874,
+                "longitude": -122.321014
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/ff268b84ff93c8642e75f872d491b9e5-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/730-A-Broadway-E-Seattle-WA-98102/448903739_zpid/",
+              "daysOnZillow": 46,
+              "zestimate": 896000
+            },
+            {
+              "id": "443383514",
+              "price": "$1,369,950+",
+              "unformattedPrice": 1369950,
+              "beds": 3,
+              "baths": 2,
+              "area": 1775,
+              "livingArea": 1775,
+              "homeType": "SINGLE_FAMILY",
+              "marketingStatus": "New Construction Spec",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 5550,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 4045803000,
+              "has3DModel": false,
+              "address": {
+                "street": "730 C Plan, Olive",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.625866,
+                "longitude": -122.32106
+              },
+              "statusText": "New construction",
+              "imgSrc": "https://photos.zillowstatic.com/fp/14091b337d738aca47f46b178ab6f8b3-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/community/olive/443383514_zpid/",
+              "daysOnZillow": 46
+            },
+            {
+              "id": "48886640",
+              "price": "$369,000",
+              "unformattedPrice": 369000,
+              "beds": 1,
+              "baths": 1,
+              "area": 576,
+              "livingArea": 576,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1986,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4080510000,
+              "taxAssessedValue": 384000,
+              "has3DModel": false,
+              "address": {
+                "street": "530 Melrose Avenue E #705",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.623928,
+                "longitude": -122.32754
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2d4cdd704775de318e0fb3efe5159320-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/530-Melrose-Ave-E-APT-705-Seattle-WA-98102/48886640_zpid/",
+              "daysOnZillow": 47,
+              "zestimate": 361600
+            },
+            {
+              "id": "59698722",
+              "price": "$0",
+              "unformattedPrice": 0,
+              "beds": 1,
+              "baths": 1,
+              "area": 607,
+              "livingArea": 607,
+              "homeType": "CONDO",
+              "marketingStatus": "Non Owner Occupied",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2008,
+              "listingSubType": {
+                "is_forAuction": true
+              },
+              "timeOnZillow": 4521444000,
+              "taxAssessedValue": 346000,
+              "lotAreaValue": 6098.4,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "416 Federal Ave E APT 101",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.622467,
+                "longitude": -122.31854
+              },
+              "statusText": "Auction",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2eb918aff9eddfe7bcadf6951c2e4d79-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/416-Federal-Ave-E-APT-101-Seattle-WA-98102/59698722_zpid/",
+              "daysOnZillow": 52,
+              "zestimate": 322600
+            },
+            {
+              "id": "349741599",
+              "price": "$824,900",
+              "unformattedPrice": 824900,
+              "beds": 2,
+              "baths": 2,
+              "area": 1579,
+              "livingArea": 1579,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4571,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 4580332000,
+              "lotAreaValue": 561.924,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "633 13th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.625195,
+                "longitude": -122.31594
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/813237ac1317045797b59f67cca90ce9-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/633-13th-Ave-E-Seattle-WA-98102/349741599_zpid/",
+              "daysOnZillow": 53,
+              "zestimate": 824100
+            },
+            {
+              "id": "441870335",
+              "price": "$999,900",
+              "unformattedPrice": 999900,
+              "beds": 3,
+              "baths": 2,
+              "area": 1943,
+              "livingArea": 1943,
+              "homeType": "TOWNHOUSE",
+              "marketingStatus": "New Construction",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 5426,
+              "listingSubType": {
+                "is_newHome": true
+              },
+              "timeOnZillow": 4581531000,
+              "taxAssessedValue": 946000,
+              "lotAreaValue": 640.332,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "629 13th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.625126,
+                "longitude": -122.315926
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/f929b0bf4d754133028e23f0f9ad0547-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/629-13th-Ave-E-Seattle-WA-98102/441870335_zpid/",
+              "daysOnZillow": 53,
+              "zestimate": 994500
+            },
+            {
+              "id": "82829635",
+              "price": "$329,000",
+              "unformattedPrice": 329000,
+              "beds": 1,
+              "baths": 1,
+              "area": 505,
+              "livingArea": 505,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1764,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4666103000,
+              "taxAssessedValue": 308000,
+              "has3DModel": false,
+              "address": {
+                "street": "325 Harvard Avenue E #302",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.621834,
+                "longitude": -122.32235
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/ee552323db84a5360e393f4a8d18c4e4-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/325-Harvard-Ave-E-APT-302-Seattle-WA-98102/82829635_zpid/",
+              "daysOnZillow": 54,
+              "zestimate": 323900
+            },
+            {
+              "id": "452147209",
+              "price": "$6,500,000",
+              "unformattedPrice": 6500000,
+              "beds": 4,
+              "baths": 4,
+              "area": 3004,
+              "livingArea": 3004,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4675412000,
+              "lotAreaValue": 0.3258,
+              "lotAreaUnit": "acres",
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Avenue #PH203",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.6172,
+                "longitude": -122.3306
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/43dd2d0e737f5f2d27beee6ee06ccdf0-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Avenue-Ph-203-Seattle-WA-98101/452147209_zpid/",
+              "daysOnZillow": 54,
+              "zestimate": 6112400
+            },
+            {
+              "id": "337596268",
+              "price": "$6,500,000",
+              "unformattedPrice": 6500000,
+              "beds": 3,
+              "baths": 4,
+              "area": 3004,
+              "livingArea": 3004,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 6263,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4752766000,
+              "taxAssessedValue": 2517000,
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Ave Penthouse 203",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.617043,
+                "longitude": -122.330605
+              },
+              "statusText": "Condo for sale",
+              "imgSrc": "https://photos.zillowstatic.com/fp/eb28e0780517c8021fb024793d70fa24-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Ave-PENTHOUSE-203-Seattle-WA-98101/337596268_zpid/",
+              "daysOnZillow": 55,
+              "zestimate": 6047400
+            },
+            {
+              "id": "129329296",
+              "price": "$6,200,000",
+              "unformattedPrice": 6200000,
+              "beds": 1,
+              "baths": 2,
+              "area": 15560,
+              "livingArea": 15560,
+              "homeType": "MULTI_FAMILY",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2396,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4850003000,
+              "taxAssessedValue": 7233000,
+              "lotAreaValue": 5715.072,
+              "lotAreaUnit": "sqft",
+              "has3DModel": false,
+              "address": {
+                "street": "321 Broadway E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98102"
+              },
+              "latLong": {
+                "latitude": 47.621666,
+                "longitude": -122.321304
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/2eb8916977f38c419d5afe19db13861b-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/321-Broadway-E-Seattle-WA-98102/129329296_zpid/",
+              "daysOnZillow": 56,
+              "zestimate": 5417900
+            },
+            {
+              "id": "332975319",
+              "price": "$509,000",
+              "unformattedPrice": 509000,
+              "beds": 1,
+              "baths": 1,
+              "area": 652,
+              "livingArea": 652,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 2847,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4851212000,
+              "taxAssessedValue": 485000,
+              "has3DModel": false,
+              "address": {
+                "street": "1808 Minor Avenue #912",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98101"
+              },
+              "latLong": {
+                "latitude": 47.6172,
+                "longitude": -122.3306
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/8f5daf7b3577ac5c14040b3f4959640e-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1808-Minor-Ave-912-Seattle-WA-98101/332975319_zpid/",
+              "daysOnZillow": 56,
+              "zestimate": 499500
+            },
+            {
+              "id": "2101549719",
+              "price": "$5,490,000",
+              "unformattedPrice": 5490000,
+              "beds": 3,
+              "baths": 3,
+              "area": 13405,
+              "livingArea": 13405,
+              "homeType": "MULTI_FAMILY",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 4552,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 4940916000,
+              "lotAreaValue": 0.3857,
+              "lotAreaUnit": "acres",
+              "has3DModel": false,
+              "address": {
+                "street": "509 19th Avenue E",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98112"
+              },
+              "latLong": {
+                "latitude": 47.62365,
+                "longitude": -122.30775
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/4f3a0ddf96d32fce2525000740323109-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/509-19th-Ave-E-Seattle-WA-98112/2101549719_zpid/",
+              "daysOnZillow": 57,
+              "zestimate": 4973400
+            },
+            {
+              "id": "72495485",
+              "price": "$350,000",
+              "unformattedPrice": 350000,
+              "baths": 1,
+              "area": 508,
+              "livingArea": 508,
+              "homeType": "CONDO",
+              "marketingStatus": "For Sale by Agent",
+              "homeStatus": "FOR_SALE",
+              "rentZestimate": 1890,
+              "listingSubType": {
+                "is_FSBA": true
+              },
+              "timeOnZillow": 5099016000,
+              "taxAssessedValue": 323000,
+              "has3DModel": false,
+              "address": {
+                "street": "1125 E Olive Street #212",
+                "city": "Seattle",
+                "state": "WA",
+                "zipcode": "98122"
+              },
+              "latLong": {
+                "latitude": 47.616173,
+                "longitude": -122.317276
+              },
+              "statusText": "Active",
+              "imgSrc": "https://photos.zillowstatic.com/fp/59a1de7e13fddae831cca0e25dca7ed0-p_e.jpg",
+              "detailUrl": "https://www.zillow.com/homedetails/1125-E-Olive-St-APT-212-Seattle-WA-98122/72495485_zpid/",
+              "daysOnZillow": 59,
+              "zestimate": 347300
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c88991b0-ba3b-4d70-858b-7ae2e9753ef7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "B03O9qA9yoJFlo9f",
+  "tags": []
+}

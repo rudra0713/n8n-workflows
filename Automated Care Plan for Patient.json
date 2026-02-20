@@ -1,0 +1,1096 @@
+{
+  "name": "Automated Care Plan for Patient",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        -208
+      ],
+      "id": "34ae4261-5352-4e23-a3d0-2d6f35bfc780",
+      "name": "Telegram Trigger",
+      "webhookId": "9cb64291-3751-4afa-b7d3-a83cf8a24372",
+      "credentials": {
+        "telegramApi": {
+          "id": "HfCIwY4UD5We9Pma",
+          "name": "Telegram account Health Care"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Extract patient information from this doctor's message and return ONLY valid JSON with no additional text:\n\n{{ $json.message.text }}\n\nReturn this exact structure:\n{\n  \"patient_name\": \"full name\",\n  \"phone\": \"phone number with country code\",\n  \"start_date\": \"YYYY-MM-DD format\",\n  \"end_date\": \"YYYY-MM-DD format\",\n  \"care_plan\": \"the full care plan text\",\n  \"questions\": [\n    \"Question 1 to ask patient daily?\",\n    \"Question 2 to ask patient daily?\",\n    \"Question 3 to ask patient daily?\"\n  ]\n}\n\nGenerate appropriate daily check-in questions based on the care plan. Each question should be clear and answerable by the patient."
+            },
+            {
+              "role": "system",
+              "content": "You are a helpful health care agent who can parse a doctor's care plan for a patient."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -208
+      ],
+      "id": "a62f47da-3e6a-48d3-be3f-19899aa99f8b",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the parsed data from OpenAI response\nconst aiOutput = $input.first().json.output[0].content[0].text;\n// Remove hyphens and add single quote for Google Sheets\naiOutput.phone = \"'\" + aiOutput.phone.replace(/-/g, '');\n\nreturn [{ json: aiOutput }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -208
+      ],
+      "id": "15ecb636-465e-4f85-9bf3-8155857f71a2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ",
+          "mode": "list",
+          "cachedResultName": "Patient Care Monitoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Patient Records",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Patient Name": "={{ $json.patient_name }}",
+            "Phone": "={{ $json.phone }}",
+            "Care Plan": "={{ $json.care_plan }}",
+            "Start Date": "={{ $json.start_date }}",
+            "End Date": "={{ $json.end_date }}",
+            "Status": "Active",
+            "Question 1": "={{ $json.questions[0] }}",
+            "Question 2": "={{ $json.questions[1] }}",
+            "Question 3": "={{ $json.questions[2] }}"
+          },
+          "matchingColumns": [
+            "Phone"
+          ],
+          "schema": [
+            {
+              "id": "Patient Name",
+              "displayName": "Patient Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Care Plan",
+              "displayName": "Care Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Question 1",
+              "displayName": "Question 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Question 2",
+              "displayName": "Question 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Question 3",
+              "displayName": "Question 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Start Date",
+              "displayName": "Start Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "End Date",
+              "displayName": "End Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        -208
+      ],
+      "id": "e5b4fe25-1a84-4f4e-98b4-612fb459cd7c",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 21
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        64
+      ],
+      "id": "7f14d2f8-78a4-491c-b5e3-ee8be4c9eb08",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ",
+          "mode": "list",
+          "cachedResultName": "Patient Care Monitoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Patient Records",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        64
+      ],
+      "id": "6b14bac8-27eb-4a9a-ae59-3175a0a48167",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        624,
+        64
+      ],
+      "id": "f7691b70-12c3-4c00-ae65-e074354c1903",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "from": "+17786529202",
+        "to": "={{ $json['Phone'] }}",
+        "message": "=Good morning {{ $json['Patient Name'] }}! Time for your daily check-in.  {{ $json['Question 1'] }}  Please reply with your answer.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        960,
+        96
+      ],
+      "id": "49d8738e-d90b-4cb8-aa42-8b10daf3d519",
+      "name": "Send an SMS/MMS/WhatsApp message",
+      "credentials": {
+        "twilioApi": {
+          "id": "4ryAKh0YHM7TOTsh",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "The loop over item is required to iterate over all patients and send them question 1.",
+        "height": 96,
+        "width": 208
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        608,
+        -32
+      ],
+      "typeVersion": 1,
+      "id": "d9f481c2-843b-46e1-80c0-82f8cc85f00e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ",
+          "mode": "list",
+          "cachedResultName": "Patient Care Monitoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1693134503,
+          "mode": "list",
+          "cachedResultName": "Active Conversations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit#gid=1693134503"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Phone": "={{ \"'\" + $('Code').item.json['Phone'] }}",
+            "Patient Name": "={{ $('Code').item.json['Patient Name'] }}",
+            "Current Question Number": "1",
+            "Care Plan": "={{ $('Code').item.json['Care Plan'] }}",
+            "Question 1": "={{ $('Code').item.json['Question 1'] }}",
+            "Question 2": "={{ $('Code').item.json['Question 2'] }}",
+            "Question 3": "={{ $('Code').item.json['Question 3'] }}",
+            "Timestamp": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "Phone"
+          ],
+          "schema": [
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Patient Name",
+              "displayName": "Patient Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current Question Number",
+              "displayName": "Current Question Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 1",
+              "displayName": "Answer 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 2",
+              "displayName": "Answer 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 3",
+              "displayName": "Answer 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Care Plan",
+              "displayName": "Care Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Question 1",
+              "displayName": "Question 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Question 2",
+              "displayName": "Question 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Question 3",
+              "displayName": "Question 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        96
+      ],
+      "id": "e97eefda-f827-4e9f-bc61-5554474ef503",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\ntoday.setHours(0, 0, 0, 0); // Reset time to midnight for date-only comparison\n\nconst activePatients = [];\n\nfor (const patient of $input.all()) {\n  const startDate = new Date(patient.json['Start Date']);\n  const endDate = new Date(patient.json['End Date']);\n  \n  startDate.setHours(0, 0, 0, 0);\n  endDate.setHours(0, 0, 0, 0);\n  \n  // Check if today is between start and end date and patient is active\n  if (today >= startDate && today <= endDate && patient.json.Status === 'Active') {\n    activePatients.push({\n      json: patient.json\n    });\n  }\n}\n\nreturn activePatients;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        64
+      ],
+      "id": "cf313686-a0de-46f1-8804-046171fd7e5f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ",
+          "mode": "list",
+          "cachedResultName": "Patient Care Monitoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1693134503,
+          "mode": "list",
+          "cachedResultName": "Active Conversations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit#gid=1693134503"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Phone",
+              "lookupValue": "={{ $json.body.From }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        352
+      ],
+      "id": "f554bf0e-cb7e-42fb-980c-ea59406d438d",
+      "name": "Lookup in Active Conversations",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "patient-sms-reply",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        352
+      ],
+      "id": "1ac0e01f-0569-49e4-aa98-db35dacc1690",
+      "name": "Webhook",
+      "webhookId": "99adcdb8-d75c-487c-a398-6b79be38cb21"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d33ef8eb-31b1-4254-9214-b4340c042c20",
+              "leftValue": "={{ $('Code2').item.json.currentQuestion + 1}}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        352
+      ],
+      "id": "475dcd05-59db-419f-b5d4-2077d75298aa",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ",
+          "mode": "list",
+          "cachedResultName": "Patient Care Monitoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1693134503,
+          "mode": "list",
+          "cachedResultName": "Active Conversations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o4iLN6-xr7B_Pl4qEzSo4GpGg1ENhdSJm_LSoeKWlYQ/edit#gid=1693134503"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Current Question Number": "={{ $json.currentQuestion + 1 }}",
+            "Answer 1": "={{ $json.currentQuestion === 1 ? $json.patientReply : $('Lookup in Active Conversations').first().json['Answer 1'] }}",
+            "Answer 2": "={{ $json.currentQuestion === 2 ? $json.patientReply : $('Lookup in Active Conversations').first().json['Answer 2'] }}",
+            "Answer 3": "={{ $json.currentQuestion === 3 ? $json.patientReply : $('Lookup in Active Conversations').first().json['Answer 3'] }}",
+            "Phone": "={{ $json.phone }}"
+          },
+          "matchingColumns": [
+            "Phone"
+          ],
+          "schema": [
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Patient Name",
+              "displayName": "Patient Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Current Question Number",
+              "displayName": "Current Question Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 1",
+              "displayName": "Answer 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 2",
+              "displayName": "Answer 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Answer 3",
+              "displayName": "Answer 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Care Plan",
+              "displayName": "Care Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Question 1",
+              "displayName": "Question 1",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Question 2",
+              "displayName": "Question 2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Question 3",
+              "displayName": "Question 3",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        352
+      ],
+      "id": "394bdd0b-d491-47ad-a11d-27136f165258",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "+17786529202",
+        "to": "={{ $('Code2').item.json.phone }}",
+        "message": "={{ $('Code2').item.json.currentQuestion + 1 === 2 ? $('Code2').item.json.question2 : $('Code2').item.json.question3 }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        432
+      ],
+      "id": "eea270ec-d873-41c0-866a-768775d1498c",
+      "name": "Send an SMS/MMS/WhatsApp message1",
+      "credentials": {
+        "twilioApi": {
+          "id": "4ryAKh0YHM7TOTsh",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the patient's reply\nconst webhookData = $('Webhook').first().json.body;\nconst patientReply = webhookData.Body;\n\n// Get the conversation state from Google Sheets\nconst conversation = $('Lookup in Active Conversations').first().json;\n\n// Get current question number\nconst currentQuestion = conversation['Current Question Number'];\n\n// Store the answer in the appropriate field\nconst answerField = `Answer ${currentQuestion}`;\n\nreturn [{\n  json: {\n    phone: conversation.Phone,\n    patientName: conversation['Patient Name'],\n    currentQuestion: currentQuestion,\n    patientReply: patientReply,\n    answerField: answerField,\n    carePlan: conversation['Care Plan'],\n    question1: conversation['Question 1'],\n    question2: conversation['Question 2'],\n    question3: conversation['Question 3']\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        352
+      ],
+      "id": "df7b798c-b264-49fa-8360-d712d7f4608c",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=CARE PLAN:\n{{ $('Code2').item.json.carePlan }}\n\nPATIENT RESPONSES:\nQuestion 1: {{ $('Code2').item.json.question1 }}\nAnswer 1: {{ $('Lookup in Active Conversations').first().json['Answer 1'] }}\n\nQuestion 2: {{ $('Code2').item.json.question2 }}\nAnswer 2: {{ $('Lookup in Active Conversations').first().json['Answer 2'] }}\n\nQuestion 3: {{ $('Code2').item.json.question3 }}\nAnswer 3: {{ $('Lookup in Active Conversations').first().json['Answer 3'] }}\n\nBased on the care plan rules, should the doctor be alerted about these responses?"
+            },
+            {
+              "role": "system",
+              "content": "You are a medical care plan analyzer. Your job is to review a patient's daily check-in responses against their care plan rules and determine if the doctor needs to be alerted.\n\nAnalyze the responses objectively based ONLY on the rules specified in the care plan. Do not make medical judgments beyond what the care plan explicitly states.\n\nReturn your analysis in this exact JSON format:\n{\n  \"alert_needed\": true or false,\n  \"alert_reason\": \"brief explanation if alert needed, empty string if not\",\n  \"severity\": \"low\", \"medium\", or \"high\" (only if alert needed, otherwise empty string)\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        304
+      ],
+      "id": "7b27734d-f830-4d33-a933-d373445c6981",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "10a0169a-69ad-484b-9b17-1e907e5daf5d",
+              "leftValue": "={{ JSON.parse($json.output[0].content[0].text).alert_needed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        304
+      ],
+      "id": "c5e9544e-63b7-4353-a88e-e79f5bbbfa45",
+      "name": "If1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        400
+      ],
+      "id": "7c19c12a-47d9-4778-9b86-90f7e8931ce5",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "chatId": "7977309532",
+        "text": "=🚨 PATIENT ALERT\n\nPatient: {{ $('Code2').item.json.patientName }}\nPhone: {{ $('Code2').item.json.phone }}\n\nRESPONSES:\nQ: {{ $('Code2').item.json.question1 }}\nA: {{ $('Lookup in Active Conversations').first().json['Answer 1'] }}\n\nQ: {{ $('Code2').item.json.question2 }}\nA: {{ $('Lookup in Active Conversations').first().json['Answer 2'] }}\n\nQ: {{ $('Code2').item.json.question3 }}\nA: {{ $('Lookup in Active Conversations').first().json['Answer 3'] }}\n\nREASON: {{ JSON.parse($json.output[0].content[0].text).alert_reason }}\nSEVERITY: {{ JSON.parse($json.output[0].content[0].text).severity }}\n\nCare Plan: {{ $('Code2').item.json.carePlan }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        208
+      ],
+      "id": "ddb1260f-a71e-4fb8-b3bf-dd017519c9d4",
+      "name": "Send a text message",
+      "webhookId": "a6c077a4-4e00-4a62-a7f2-7140605348d1",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup in Active Conversations": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Lookup in Active Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "65b6a791-4c48-4b79-8cb5-672bae65c3f1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "oZ2DCyDaZ9z0RmoL",
+  "tags": []
+}

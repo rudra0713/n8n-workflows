@@ -1,0 +1,252 @@
+{
+  "name": "Listing Description Generator - subworkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "address"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7eac20c6-41b7-499e-ab59-c92720bac799",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "url": "https://nominatim.openstreetmap.org/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.address }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-workflow"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e7d74054-6098-4d3c-86d5-de84a3e38e7f",
+      "name": "Geocode Address"
+    },
+    {
+      "parameters": {
+        "url": "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "location",
+              "value": "={{ $('Geocode Address').item.json.lat }},{{ $('Geocode Address').item.json.lon }}"
+            },
+            {
+              "name": "radius",
+              "value": "3200"
+            },
+            {
+              "name": "type",
+              "value": "school"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyCjHP6N-RKdAFaAoVe_BhD3mDpgYjEm6-0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fa723e38-fbfa-403b-94df-275191024008",
+      "name": "Get Schools"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "location",
+              "value": "={{ $('Geocode Address').item.json.lat }},{{ $('Geocode Address').item.json.lon }}"
+            },
+            {
+              "name": "radius",
+              "value": "1600"
+            },
+            {
+              "name": "type",
+              "value": "restaurant"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyCjHP6N-RKdAFaAoVe_BhD3mDpgYjEm6-0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "c2316811-cac3-4dc1-a265-9a4089d21013",
+      "name": "Get Restaurants"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "location",
+              "value": "={{ $('Geocode Address').item.json.lat }},{{ $('Geocode Address').item.json.lon }}"
+            },
+            {
+              "name": "radius",
+              "value": "1000"
+            },
+            {
+              "name": "type",
+              "value": "transit_station"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyCjHP6N-RKdAFaAoVe_BhD3mDpgYjEm6-0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "b77bbec4-4bda-498e-90e6-6d5b2ea0742c",
+      "name": "Get Transit"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get data from all nodes\nconst geocodeData = $('Geocode Address').item.json;\nconst schoolsData = $('Get Schools').item.json;\nconst restaurantsData = $('Get Restaurants').item.json;\nconst transitData = $('Get Transit').item.json;\n\n// Get coordinates\nconst coords = {\n  lat: parseFloat(geocodeData.lat),\n  lon: parseFloat(geocodeData.lon)\n};\n\n// Helper: Calculate distance in miles\nfunction calcDistance(lat1, lon1, lat2, lon2) {\n  const R = 3959; // Earth's radius in miles\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = \n    Math.sin(dLat/2) * Math.sin(dLat/2) +\n    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n    Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return Math.round(R * c * 10) / 10; // Round to 1 decimal\n}\n\n// Process schools - get top 5 closest\nconst schools = (schoolsData.results || [])\n  .filter(s => s.name)\n  .map(s => ({\n    name: s.name,\n    rating: s.rating || 'N/A',\n    distance: calcDistance(coords.lat, coords.lon, s.geometry.location.lat, s.geometry.location.lng),\n    types: s.types\n  }))\n  .sort((a, b) => a.distance - b.distance)\n  .slice(0, 5)\n  .map(s => ({\n    name: s.name,\n    rating: s.rating,\n    distance: s.distance + ' miles',\n    type: s.types.includes('primary_school') ? 'Elementary' : \n          s.types.includes('secondary_school') ? 'High School' : 'School'\n  }));\n\n// Process restaurants - count and get top rated nearby\nconst restaurants = (restaurantsData.results || [])\n  .filter(r => r.name && r.rating)\n  .map(r => ({\n    name: r.name,\n    rating: r.rating,\n    price_level: r.price_level || 0\n  }));\n\nconst restaurantCount = restaurants.length;\nconst topRestaurants = restaurants\n  .sort((a, b) => b.rating - a.rating)\n  .slice(0, 5)\n  .map(r => r.name);\n\n// Process transit - get closest stations\nconst transit = (transitData.results || [])\n  .filter(t => t.name)\n  .map(t => ({\n    name: t.name,\n    distance: calcDistance(coords.lat, coords.lon, t.geometry.location.lat, t.geometry.location.lng)\n  }))\n  .sort((a, b) => a.distance - b.distance)\n  .slice(0, 3)\n  .map(t => ({\n    name: t.name,\n    distance: t.distance + ' miles'\n  }));\n\n// Return formatted neighborhood data\nreturn {\n  json: {\n    schools: {\n      count: schools.length,\n      nearby: schools\n    },\n    restaurants: {\n      count: restaurantCount,\n      top_rated: topRestaurants\n    },\n    transportation: {\n      transit_count: transit.length,\n      nearby_stops: transit\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "48b646db-b35f-48d2-97b7-85efa11517c2",
+      "name": "Format Neighborhood Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Geocode Address",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Geocode Address": {
+      "main": [
+        [
+          {
+            "node": "Get Schools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Schools": {
+      "main": [
+        [
+          {
+            "node": "Get Restaurants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Restaurants": {
+      "main": [
+        [
+          {
+            "node": "Get Transit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transit": {
+      "main": [
+        [
+          {
+            "node": "Format Neighborhood Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b6f5a248-a2b5-410f-8d13-af57d142aeb1",
+  "meta": {
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "84nsLD3ARbRiwjJH",
+  "tags": []
+}

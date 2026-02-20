@@ -1,0 +1,368 @@
+{
+  "name": "Prior authorization automation (Health Care)",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7267b033-6d43-4a0d-8f0f-b95b5e75a573",
+      "name": "PA Request Chat",
+      "webhookId": "19a444a1-c287-4de8-abec-07fd05ab0832"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a prior authorization assistant helping nurses submit PA requests. Follow these steps in order:\nStep 1: Extract the patient ID, procedure/treatment details, and insurer name from the nurse's message. If any of these are missing, ask for them.\nStep 2: As soon as you have the patient ID, use the Fetch Patient from EHR tool to retrieve the patient's demographics. You do not need a CPT code. Plain language procedure descriptions are acceptable.\nStep 3: Confirm with the nurse by showing the patient's name, date of birth, insurer, and requested procedure. Wait for the nurse to confirm.\nStep 4: After the nurse confirms, use the Lookup PA Requirements tool with the insurer name and procedure category to find what fields are required.\nStep 5: Immediately after getting the requirements, use the Fetch Clinical Data tool with the patient ID to retrieve diagnosis codes and conditions from the EHR.\nStep 6: Compare what was fetched against what is required. Tell the nurse what was found and ask only for the fields that are still missing.\nStep 7: Once all required fields are collected, summarize the complete PA request and ask for final confirmation before submission. After the nurse confirms submission, use the Copy PA Template tool with the Template File ID returned from the Lookup PA Requirements step as the template_file_id, and set the document_title as PA_PatientName_Procedure. Then use the Fill PA Form tool with the document ID returned from the copy step, along with all collected data, to fill in the form. Confirm to the nurse that the PA form has been generated and submitted.",
+          "returnIntermediateSteps": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0b924e24-8f7a-4117-aa52-a45360d87a47",
+      "name": "Extract PA Details"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        208
+      ],
+      "id": "a1b728d8-5be6-4cc9-bbc9-520cc60a6820",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to fetch patient demographics and insurance details from the EHR when you have a patient ID.",
+        "url": "=https://hapi.fhir.org/baseR4/Patient/{{ $fromAI('patient_id') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        368,
+        208
+      ],
+      "id": "a77478da-ffef-4170-8612-6448ec4ab6fd",
+      "name": "Fetch Patient from EHR"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to fetch the patient's clinical data including diagnosis codes and conditions from the EHR. Provide the patient ID. Use this after the nurse confirms the patient details and PA requirements have been looked up.",
+        "url": "=https://hapi.fhir.org/baseR4/Condition?patient={{ $fromAI('patient_id') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        400
+      ],
+      "id": "ef1d67bb-0831-457a-8bee-9f6c92c6254d",
+      "name": "Fetch Clinical Data"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        208
+      ],
+      "id": "c6ef2aa7-a5dc-4654-ac88-8df55c1820db",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to create a copy of the PA form template. Provide the template_file_id from the PA Requirements lookup and a document_title in the format PA_PatientName_Procedure.",
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $fromAI('template_file_id') }}",
+          "mode": "id"
+        },
+        "name": "={{ $fromAI('document_title') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        736,
+        304
+      ],
+      "id": "bd92a069-e910-4bdf-b5d8-40f991db0ecd",
+      "name": "Copy PA Template",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EgtIZvDGSy0hwwrS",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to fill in the PA form after copying the template. You must provide the document_id from the Copy PA Template result, along with all patient and clinical data: date, patient_name, patient_dob, patient_gender, insurer, procedure, diagnosis_codes, clinical_notes, and physician_npi.",
+        "operation": "update",
+        "documentURL": "={{ $fromAI('document_id') }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "{{date}}",
+              "replaceText": "={{ $fromAI('date') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{patient_name}}",
+              "replaceText": "={{ $fromAI('patient_name') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{patient_dob}}",
+              "replaceText": "={{ $fromAI('patient_dob') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{patient_gender}}",
+              "replaceText": "={{ $fromAI('patient_gender') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{insurer}}",
+              "replaceText": "={{ $fromAI('insurer') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{procedure}}",
+              "replaceText": "={{ $fromAI('procedure') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{diagnosis_codes}}",
+              "replaceText": "={{ $fromAI('diagnosis_codes') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{clinical_notes}}",
+              "replaceText": "={{ $fromAI('clinical_notes') }}"
+            },
+            {
+              "action": "replaceAll",
+              "text": "{{physician_npi}}",
+              "replaceText": "={{ $fromAI('physician_npi') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        656,
+        496
+      ],
+      "id": "f7e1283a-2ff2-47d2-b1a0-30a97f937b2d",
+      "name": "Fill PA Form",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "xgjzhrQu2HjtYRWH",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to look up the prior authorization requirements for a specific insurer and procedure category. Provide the insurer name and procedure category (e.g. MRI, Surgery, Physical Therapy). This tool returns the required fields, submission method, and the Template File ID needed to generate the PA form.",
+        "documentId": {
+          "__rl": true,
+          "value": "1YxiIl5ub_uRSgQoCFXYRdQq5zBctvyVNGP4sqMCmg7E",
+          "mode": "list",
+          "cachedResultName": "PA Requirements Lookup",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1YxiIl5ub_uRSgQoCFXYRdQq5zBctvyVNGP4sqMCmg7E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1YxiIl5ub_uRSgQoCFXYRdQq5zBctvyVNGP4sqMCmg7E/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Insurer",
+              "lookupValue": "={{ $fromAI('insurer') }}"
+            },
+            {
+              "lookupColumn": "Procedure Category",
+              "lookupValue": "={{ $fromAI('procedure_category') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        304
+      ],
+      "id": "61b69065-270d-47e5-bb38-21f523d3fc98",
+      "name": "Lookup PA Requirements",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PA Request Chat": {
+      "main": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Patient from EHR": {
+      "ai_tool": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Clinical Data": {
+      "ai_tool": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy PA Template": {
+      "ai_tool": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill PA Form": {
+      "ai_tool": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup PA Requirements": {
+      "ai_tool": [
+        [
+          {
+            "node": "Extract PA Details",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9fa42587-d6cc-4adc-b1c4-e2b04e4c236c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "UXI0O1eeVnBbLD8p",
+  "tags": []
+}

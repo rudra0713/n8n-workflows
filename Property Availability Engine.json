@@ -1,0 +1,1169 @@
+{
+  "name": "Property Availability Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -48
+      ],
+      "id": "3c0a6d68-e173-4a48-94c5-e4047d3556d8",
+      "name": "Telegram Trigger",
+      "webhookId": "c199e3fd-b5f4-4046-b7dc-777e5582ee3f",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('set_fields_final').item.json.user_text }}",
+        "options": {
+          "systemMessage": "=CRITICAL: All responses under 140 characters. Be brief.\n\nYou are a property showing assistant.\n\nSEARCH: {{ $json.property_context }}\nPROPERTY ID: {{ $json.property_id }}\nADDRESS: {{ $json.property_address }}\nRESTRICTIONS: {{ $json.property_restrictions }}\n\nUSER MESSAGE: {{ $json.user_text }}\nDATE: {{ $now.format('YYYY-MM-DD') }}\n\nFLOW:\n- If property_context has details → Tell user about property and restrictions, ask for time\n- If property_context is \"NO_PROPERTY_FOUND\" + PROPERTY ID exists → Process booking\n- If property_context is \"NO_PROPERTY_FOUND\" + PROPERTY ID empty → Ask for address\n\nBOOKING FLOW:\n1. Convert user time to ISO: YYYY-MM-DDTHH:mm:ss (NO timezone, NO offset)\n   Example: \"Jan 18, 7 pm\" → \"2026-01-18T19:00:00\"\n2. End time = start + 1 hour\n3. Validate against RESTRICTIONS\n   - If fails: \"Sorry, that time doesn't fit restrictions. Suggest another?\"\n   - STOP\n4. Call check_availability(property_id)\n5. Get returned bookings\n6. Manually check if proposed [start, end] overlaps any returned booking\n   - Overlap = start < existing_end AND end > existing_start\n7. No overlap → call create_booking(property_id, {{ $json.chat_id }}, start, end)\n- property_id: the \"id\" from the matched property\n- client_contact: \"{{ $json.chat_id }}\"\n- proposed_start_time: the ISO start datetime with -08:00 offset (e.g., \"2026-01-20T14:00:00-08:00\")\n- proposed_end_time: start datetime + 1 hour, also with -08:00 offset  → \nConfirm\n8. Overlap → \"That time is booked. Suggest another?\" STOP\n\nUser times are Pacific. Output times as Pacific. NO conversions.",
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1360,
+        -128
+      ],
+      "id": "3079185c-2e4f-4894-80cc-50a94f1c9a02",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "gpt-5"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1056,
+        448
+      ],
+      "id": "f4c30ed6-4145-4022-b176-235094903902",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Check if a time slot is available for a property showing.\nReturns all existing confirmed or pending bookings for the given property.\nInput parameters:\n- property_id: The Airtable record ID of the property (string)\n\nReturns: Array of existing bookings (each with Proposed_Time_Start, Proposed_Time_End, Status, etc.).\nEmpty array means no bookings exist for this property.\nThe AI agent will compare the proposed time against these records to detect overlaps.",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblgah9Fp5d7qiFu4",
+          "mode": "list",
+          "cachedResultName": "Scheduled_Showings",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tblgah9Fp5d7qiFu4"
+        },
+        "filterByFormula": "={Property_ID} = \"{{ $json.property_id }}\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        1408,
+        384
+      ],
+      "id": "e7291211-89e3-4ad5-b4bf-fb36ef5b8c16",
+      "name": "check_availability",
+      "notesInFlow": false,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Book a confirmed property showing in the Scheduled_Showings table.\nCreates a new record with Status set to \"Confirmed\".\n\nInput parameters:\n- property_id: The Airtable record ID of the property (string)\n- client_contact: The client's chat/phone ID (string)\n- proposed_start_time: The showing start time in ISO 8601 format with Vancouver timezone offset (YYYY-MM-DDTHH:mm:ss-08:00 for PST or -07:00 for PDT) (string)\n- proposed_end_time: The showing end time in ISO 8601 format with Vancouver timezone offset (start + 1 hour) (string)\n\nImportant: Always include the timezone offset in the ISO strings:\n- Use -08:00 for PST\n- Example: \"Jan 20 at 2 pm\" → \"2026-01-20T14:00:00-08:00\"\n\nThe times are in Vancouver local time. The Airtable fields are set to America/Vancouver timezone, so sending with offset ensures correct storage and display.\n\nReturns: The created booking record details, including the new record ID.",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblgah9Fp5d7qiFu4",
+          "mode": "list",
+          "cachedResultName": "Scheduled_Showings",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tblgah9Fp5d7qiFu4"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Property_ID": "={{ [$json.property_record_id] }}",
+            "Client_Contact": "={{ $fromAI('client_contact', '', 'string') }}",
+            "Status": "Confirmed",
+            "Proposed_Time_Start": "={{ $fromAI('proposed_start_time', '', 'string') }}",
+            "Proposed_Time_End": "={{ $fromAI('proposed_end_time', '', 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Showing_ID",
+              "displayName": "Showing_ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Property_ID",
+              "displayName": "Property_ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Client_Contact",
+              "displayName": "Client_Contact",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Proposed_Time_Start",
+              "displayName": "Proposed_Time_Start",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Proposed_Time_End",
+              "displayName": "Proposed_Time_End",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Pending",
+                  "value": "Pending"
+                },
+                {
+                  "name": "Confirmed",
+                  "value": "Confirmed"
+                },
+                {
+                  "name": "Completed",
+                  "value": "Completed"
+                },
+                {
+                  "name": "Cancelled",
+                  "value": "Cancelled"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Confirmation_Summary",
+              "displayName": "Confirmation_Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prop Rec ID",
+              "displayName": "Prop Rec ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        1600,
+        368
+      ],
+      "id": "b8cf8161-8d7e-44da-af0b-9619c4feda0c",
+      "name": "create_booking",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('AI Agent').item.json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        112
+      ],
+      "id": "c4f22087-1058-424a-a240-607150c10a4b",
+      "name": "Send a text message",
+      "webhookId": "7e74246d-983e-4dde-9969-6e82a82aa066",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3c52a3f8-670f-45bd-aa9f-cb0f6656be03",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -608,
+        -224
+      ],
+      "id": "9b024445-21bf-4ee8-ad18-d549e7e5688f",
+      "name": "Webhook",
+      "webhookId": "3c52a3f8-670f-45bd-aa9f-cb0f6656be03"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "df616f83-8079-4f2b-9835-b7099847218e",
+              "name": "channel",
+              "value": "\"sms\"",
+              "type": "string"
+            },
+            {
+              "id": "831308f3-40c6-4382-9a93-a14d9171ab69",
+              "name": "chat_id",
+              "value": "={{ $json.body.From}} ",
+              "type": "string"
+            },
+            {
+              "id": "8ea2c69e-ee08-4a23-814d-82695921d981",
+              "name": "user_text",
+              "value": "={{ $json.body.Body}}",
+              "type": "string"
+            },
+            {
+              "id": "803575c2-1616-4f20-bba9-f5c5c519ce69",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        -224
+      ],
+      "id": "73c71906-4322-479a-8e26-be0689cd48a8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -176,
+        -128
+      ],
+      "id": "8fffc3d6-750e-435a-b883-12078ce6fba5",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ad2b64b4-97f3-4e2f-b81a-3e4e9d3fc178",
+              "name": "channel",
+              "value": "\"telegram\"",
+              "type": "string"
+            },
+            {
+              "id": "e7f69c53-88a4-46d8-9245-cefd86935d66",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5b605871-52f3-4207-ac80-2e4c0435fcfe",
+              "name": "user_text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        -48
+      ],
+      "id": "e90422df-74c5-42b7-880f-354ff7ed8b6b",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8d77dde5-758e-4fe7-bff3-1a4624117be8",
+              "leftValue": "={{ $('set_fields_final').item.json.channel }}",
+              "rightValue": "\"sms\"",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        32
+      ],
+      "id": "d283020e-94b9-4713-a475-8d859866d8c1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "from": "+17786529202",
+        "to": "+16044401293",
+        "message": "={{ $('AI Agent').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        -64
+      ],
+      "id": "f1be7287-543a-4c5f-ab73-7260be576920",
+      "name": "Send an SMS/MMS/WhatsApp message",
+      "credentials": {
+        "twilioApi": {
+          "id": "4ryAKh0YHM7TOTsh",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c61923ad-b2be-45b1-abd8-aa8431112b70",
+              "name": "channel",
+              "value": "={{ $json.channel}}",
+              "type": "string"
+            },
+            {
+              "id": "f750d499-edb4-43be-b69c-f995ff6c94ed",
+              "name": "chat_id",
+              "value": "={{ $json.chat_id}}",
+              "type": "string"
+            },
+            {
+              "id": "3059aae6-781f-4b03-b4ef-7570fb0e84a2",
+              "name": "user_text",
+              "value": "={{ $json.user_text}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        0,
+        -128
+      ],
+      "id": "135e8e05-71b3-4282-a20b-98b63a9d50a9",
+      "name": "set_fields_final"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblJBqdBBIHDQsHZl",
+          "mode": "list",
+          "cachedResultName": "Properties",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tblJBqdBBIHDQsHZl"
+        },
+        "filterByFormula": "=OR(\n  FIND(LOWER(\"{{ $json.user_text }}\"), LOWER({Address})) > 0,\n  FIND(LOWER({Address}), LOWER(\"{{ $json.user_text }}\")) > 0\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        -128
+      ],
+      "id": "d41e5df5-483c-4dd6-8df2-7a45e7b8c69c",
+      "name": "Search records",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fe91cdf3-19e1-44f2-a769-80f727e87e64",
+              "leftValue": "={{ $json.property_context }}",
+              "rightValue": "NO_PROPERTY_FOUND",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        -128
+      ],
+      "id": "2c1d7452-2d14-44f6-b067-56a75dd2cab4",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbllvzWLzlZSgRAlV",
+          "mode": "list",
+          "cachedResultName": "Session_State",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tbllvzWLzlZSgRAlV"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('set_fields_final').first().json.chat_id }}",
+            "property_id": "={{ $json.properties[0][\"Property ID\"] }}",
+            "property_restrictions": "={{ $json.properties[0][\"Viewing Restrictions\"] }}",
+            "property_address": "={{ $json.properties[0].Address }}",
+            "property_record_id": "={{ $json.properties[0][\"id\"] }}"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "property_id",
+              "displayName": "property_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "property_restrictions",
+              "displayName": "property_restrictions",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "property_address",
+              "displayName": "property_address",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "last_updated",
+              "displayName": "last_updated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "property_record_id",
+              "displayName": "property_record_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        832,
+        -208
+      ],
+      "id": "ea642e74-cee5-43d7-8e86-ad76121674d7",
+      "name": "Save Session State",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbllvzWLzlZSgRAlV",
+          "mode": "list",
+          "cachedResultName": "Session_State",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tbllvzWLzlZSgRAlV"
+        },
+        "filterByFormula": "={chat_id} = \"{{ $('set_fields_final').item.json.chat_id }}\"",
+        "returnAll": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        832,
+        -32
+      ],
+      "id": "18cf6450-7d63-498c-984e-1fc3519a29cd",
+      "name": "Load Session State",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9c4d811-7318-4c3c-bdef-0ce07f54b61e",
+              "name": "chat_id",
+              "value": "={{ $('set_fields_final').item.json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "fde9009a-9a28-46cf-931c-0bde7332f83c",
+              "name": "user_text",
+              "value": "={{ $('set_fields_final').item.json.user_text }}",
+              "type": "string"
+            },
+            {
+              "id": "609b77b7-2bb9-48d3-af9c-4147a7c774f3",
+              "name": "channel",
+              "value": "={{ $('set_fields_final').item.json.channel }}",
+              "type": "string"
+            },
+            {
+              "id": "3554fe20-d442-4244-8cda-514193aa515a",
+              "name": "property_context",
+              "value": "={{ $('Code').item.json.property_context }}",
+              "type": "string"
+            },
+            {
+              "id": "a0b20d73-0347-4e07-9bfc-092445a6f58a",
+              "name": "property_id",
+              "value": "={{ $json.property_id || $json.fields.property_id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "327b2258-0f83-4b43-809f-fed4157f4892",
+              "name": "stored_property_address",
+              "value": "={{ $json.property_address || $json.fields.property_address || null }}",
+              "type": "string"
+            },
+            {
+              "id": "bd0848c4-f42a-43bb-b8a6-65d440484bab",
+              "name": "stored_property_restrictions",
+              "value": "={{ $json.property_restrictions || $json.fields.property_restrictions || null }}",
+              "type": "string"
+            },
+            {
+              "id": "aac59681-41c8-4c71-a001-4a4ac2765dc0",
+              "name": "properties",
+              "value": "={{ $('Code').item.json.properties }}",
+              "type": "string"
+            },
+            {
+              "id": "adb08141-a0a0-4d66-a4b7-cd08e5665093",
+              "name": "property_record_id",
+              "value": "={{ $json.property_record_id || $json.fields.property_record_id || null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1008,
+        -32
+      ],
+      "id": "67ce5465-8862-4db6-bab2-83dd09173bcb",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const properties = items.map(item => item.json).filter(p => p && p.id);\n\nif (properties.length === 0) {\n  return [{\n    json: {\n      property_context: \"NO_PROPERTY_FOUND\",\n      properties: []  // ✅ Added\n    }\n  }];\n}\n\n// Build formatted string for found properties\nconst lines = [\"Available properties (match user's address request):\"];\n\nproperties.forEach((prop) => {\n  lines.push(\n    `- ID: ${prop.id}`,\n    `  Address: ${prop.Address || 'Unknown'}`,\n    `  Viewing Restrictions: ${prop[\"Viewing Restrictions\"] || 'None'}`,\n    \"\"\n  );\n});\n\nconst context = lines.join('\\n').trim();\n\nreturn [{\n  json: {\n    property_context: context,\n    properties: properties  // ✅ Added\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -128
+      ],
+      "id": "daf00fb3-7e42-4179-bb5b-66dfd7f71401",
+      "name": "Code"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1184,
+        -128
+      ],
+      "id": "033846df-2910-413d-b8ef-3ce816a59e3d",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9c4d811-7318-4c3c-bdef-0ce07f54b61e",
+              "name": "chat_id",
+              "value": "={{ $('set_fields_final').item.json.chat_id }}",
+              "type": "string"
+            },
+            {
+              "id": "fde9009a-9a28-46cf-931c-0bde7332f83c",
+              "name": "user_text",
+              "value": "={{ $('set_fields_final').item.json.user_text }}",
+              "type": "string"
+            },
+            {
+              "id": "609b77b7-2bb9-48d3-af9c-4147a7c774f3",
+              "name": "channel",
+              "value": "={{ $('set_fields_final').item.json.channel }}",
+              "type": "string"
+            },
+            {
+              "id": "3554fe20-d442-4244-8cda-514193aa515a",
+              "name": "property_context",
+              "value": "={{ $('Code').item.json.property_context }}",
+              "type": "string"
+            },
+            {
+              "id": "a0b20d73-0347-4e07-9bfc-092445a6f58a",
+              "name": "property_id",
+              "value": "={{ $json.property_id || $json.fields.property_id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "327b2258-0f83-4b43-809f-fed4157f4892",
+              "name": "stored_property_address",
+              "value": "={{ $json.property_address || $json.fields.property_address || null }}",
+              "type": "string"
+            },
+            {
+              "id": "bd0848c4-f42a-43bb-b8a6-65d440484bab",
+              "name": "stored_property_restrictions",
+              "value": "={{ $json.property_restrictions || $json.fields.property_restrictions || null }}",
+              "type": "string"
+            },
+            {
+              "id": "96be548b-ff0e-456a-b93f-00887a47b138",
+              "name": "properties",
+              "value": "={{ $('Code').item.json.properties }}",
+              "type": "string"
+            },
+            {
+              "id": "2df58980-b81f-41c0-a226-e78fde27ff1d",
+              "name": "property_record_id",
+              "value": "={{ $json.property_record_id || $json.fields.property_record_id || null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        -208
+      ],
+      "id": "7e113f50-4a30-4301-ba83-4975cf6aa94e",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('set_fields_final').item.json.chat_id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1216,
+        432
+      ],
+      "id": "5c00016a-67a7-4f43-9ee5-0c8aae5fbde7",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_availability": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_booking": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "set_fields_final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_fields_final": {
+      "main": [
+        [
+          {
+            "node": "Search records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Save Session State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Load Session State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session State": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Session State": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e0258d86-2b15-440c-a334-ccd15cd75532",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "MD4M2lBKtNKUZ6Ej",
+  "tags": []
+}

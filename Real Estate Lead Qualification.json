@@ -1,0 +1,1162 @@
+{
+  "name": "Real Estate Lead Qualification",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1072,
+        -80
+      ],
+      "id": "a288ef86-0565-48f9-8865-7c8a7ec352ba",
+      "name": "Telegram Trigger",
+      "webhookId": "ab5703a8-fe91-4fa9-a610-65261802e5dc",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "92020a64-23ed-49a1-ad93-87d28473d093",
+              "name": "telegram_user_id",
+              "value": "={{ $json.message.from.id}}",
+              "type": "string"
+            },
+            {
+              "id": "3b57111d-8b7d-4e0e-b372-0edf1a17de96",
+              "name": "telegram_username",
+              "value": "={{ $json.message.from.username }}",
+              "type": "string"
+            },
+            {
+              "id": "fcd28a6e-21bd-4156-8f1d-533151de59da",
+              "name": "first_name",
+              "value": "={{ $json.message.from.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "867dc0e6-851a-4056-adbb-abd35440bd06",
+              "name": "user_message",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "f5e439a4-84b6-434c-af78-2b9cd9c8f87b",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -864,
+        -80
+      ],
+      "id": "21c267de-ec2f-4a76-bcbe-4537db7e257b",
+      "name": "Extract User Info"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "=You are a real estate assistant for Vancouver properties. Your job is to qualify leads through natural conversation.\nAVAILABLE TOOLS:\n- search_leads: Find existing lead by Telegram User ID\n- create_lead: Create new lead record (only if search_leads returns empty)\n- update_lead: Update existing lead with new information (requires record_id from search_leads or create_lead)\n\nMANDATORY WORKFLOW FOR EVERY MESSAGE:\nStep 1: ALWAYS call search_leads first.\nUse Telegram User ID: {{ $('Extract User Info').item.json.telegram_user_id }}\n\nStep 2: Determine next action based on search_leads result.\n- If search_leads returns empty array [] → Call create_lead (first-time user). Then, using the record_id returned from create_lead, proceed to Step 3 and Step 4.\n- If search_leads returns a record → Use the returned fields (including conversation_history) as context for the ongoing conversation. Proceed to Step 3 and Step 4.\n\nStep 3: ALWAYS extract information from the user's current message, even if partial or updating existing values. Use the conversation_history from search_leads (or empty for new users) to understand context and avoid redundant questions.\nBudget extraction examples:\n- \"$250k\" → Budget_Min: 250000, Budget_Max: 250000\n- \"$250k to $350k\" → Budget_Min: 250000, Budget_Max: 350000\n- \"around $800k\" → Budget_Min: 750000, Budget_Max: 850000\n- \"under 500k\" → Budget_Min: null, Budget_Max: 500000\n- \"over a million\" → Budget_Min: 1000000, Budget_Max: null\nBedrooms extraction examples:\n- \"2 bedroom\" or \"two beds\" → Bedrooms_Wanted: 2\n- \"three bed\" or \"3 bedrooms\" → Bedrooms_Wanted: 3\n- \"at least 4 beds\" → Bedrooms_Wanted: 4\nCities extraction examples:\n- \"Vancouver\" → Preferred_Cities: [\"Vancouver\"]\n- \"Vancouver and Richmond\" or \"Vancouver, Richmond\" → Preferred_Cities: [\"Vancouver\", \"Richmond\"]\n- \"Anywhere in Burnaby or Surrey\" → Preferred_Cities: [\"Burnaby\", \"Surrey\"]\n- Must be array with exact matches: Vancouver, Burnaby, Surrey, Richmond, North Vancouver. If user says something else, map to closest or ask for clarification.\nTimeline extraction:\n- Match exactly to: \"Immediately\", \"Within 1 month\", \"1-3 months\", \"3-6 months\", \"Just browsing\". If close, use best match.\nBuyer Type extraction:\n- Match exactly to: \"First-time buyer\", \"Investor\", \"Upgrading\", \"Downsizing\", \"Cash buyer\". If close, use best match.\n\nIf user updates a value (e.g., changes budget), extract and send the NEW value.\n\nStep 4: ALWAYS call update_lead after Step 3, even if no new info was extracted (to append conversation_history).\nRequired parameters:\n- record_id: Extract the \"id\" field from search_leads or create_lead result (format: \"recXXXXXXXX\")\nOptional parameters (include ONLY if extracted from current message or needed for status):\n- Budget_Min: number\n- Budget_Max: number\n- Bedrooms_Wanted: number\n- Preferred_Cities: [\"Vancouver\", \"Richmond\"] (must be array, not string; append to existing if updating)\n- Timeline: exact match from options\n- Buyer_Type: exact match from options\n- Status: \"New\" or \"Qualified\"\n- Conversation_History: string\nStatus logic:\n- Check existing fields from search_leads PLUS newly extracted ones.\n- Set Status=\"Qualified\" ONLY if the lead will have AFTER this update: Budget_Min AND Budget_Max AND Bedrooms_Wanted AND Preferred_Cities (at least one city).\n- Otherwise, keep or set Status=\"New\".\nConversation History logic:\n- Get existing Conversation_History from search_leads (or empty for new users).\n- ALWAYS append: \"\\nUser: [current message]\\nAssistant: [your response]\"\n- Send the complete updated history to update_lead.\n\nStep 5: Respond to user based on context from search_leads.\n- Use conversation_history to recall what's been discussed.\n- Ask ONE question at a time, naturally, based on missing fields: If missing budget, ask for budget range. If missing bedrooms, ask for number of bedrooms. If missing cities, suggest options and ask preferences. Etc.\n- Be friendly and conversational.\n- Keep responses 2-3 sentences maximum.\n- Don't use bullet points or lists.\n- When Status becomes \"Qualified\" after this update, say: \"Great! Let me find matching properties for you.\"\n- If no more questions needed but not qualified, gently probe for missing info.\n\nStep 6: Search for matching properties (ONLY when Status becomes \"Qualified\")\nWhen you set Status=\"Qualified\" in Step 4, IMMEDIATELY call search_properties.\n\nBuild Airtable filter formula using the lead's criteria:\n- Budget: AND({Price} >= Budget_Min, {Price} <= Budget_Max)\n- Bedrooms: {Bedrooms} = Bedrooms_Wanted\n- Cities: Use OR for multiple cities\n\nFormula construction examples:\n1. Budget $800k-$1M, 2 bedrooms, Vancouver only:\n   AND({Price} >= 800000, {Price} <= 1000000, {Bedrooms} = 2, {City} = \"Vancouver\")\n\n2. Budget $700k-$900k, 3 bedrooms, Vancouver OR Richmond:\n   AND({Price} >= 700000, {Price} <= 900000, {Bedrooms} = 3, OR({City} = \"Vancouver\", {City} = \"Richmond\"))\n\n3. Budget $500k-$750k, 2 bedrooms, Vancouver OR Burnaby OR Surrey:\n   AND({Price} >= 500000, {Price} <= 750000, {Bedrooms} = 2, OR({City} = \"Vancouver\", {City} = \"Burnaby\", {City} = \"Surrey\"))\n\nIMPORTANT:\n- Use exact field names: {Price}, {Bedrooms}, {City}\n- Cities must match exactly: Vancouver, Burnaby, Surrey, Richmond, North Vancouver\n- If Preferred_Cities has multiple cities, use OR({City} = \"City1\", {City} = \"City2\", ...)\n- Always wrap the entire formula in AND()\n\nAfter search_properties returns results:\n- If 0 results: \"I couldn't find exact matches. Would you like to adjust your budget or bedroom requirements?\"\n- If 1-3 results: Present each property with details (address, price, bedrooms, description)\n- Don't send photos yet - just list the properties with their details\n\nCRITICAL RULES:\n1. ALWAYS extract from current message and call update_lead on EVERY run, using record_id from search_leads or create_lead.\n2. record_id is REQUIRED for update_lead - it's the \"id\" field from search_leads or create_lead (looks like \"recABC123XYZ\").\n3. Preferred_Cities MUST be an array: [\"Vancouver\"] NOT \"Vancouver\". If updating, merge with existing array from search_leads.\n4. Field names use Capital_Case_With_Underscores exactly as shown.\n5. Include ONLY newly extracted fields in update_lead; do not resend unchanged data.\n6. Observe tool outputs: create_lead returns the new record including id.\n\nEXAMPLE for new user:\nUser says: \"Hi, looking for 2-bed in Vancouver around 800k\"\nsearch_leads: []\ncreate_lead: returns {\"id\": \"recXYZ123\", ...}\nExtract: Budget_Min: 750000, Budget_Max: 850000, Bedrooms_Wanted: 2, Preferred_Cities: [\"Vancouver\"]\nStatus: \"Qualified\"\nupdate_lead call:\n{\n  \"record_id\": \"recXYZ123\",\n  \"Budget_Min\": 750000,\n  \"Budget_Max\": 850000,\n  \"Bedrooms_Wanted\": 2,\n  \"Preferred_Cities\": [\"Vancouver\"],\n  \"Status\": \"Qualified\",\n  \"Conversation_History\": \"User: Hi, looking for 2-bed in Vancouver around 800k\\nAssistant: Hi! Sounds like you're after a 2-bedroom in Vancouver with a budget around $800k. Great! Let me find matching properties for you.\"\n}\nResponse: Hi! Sounds like you're after a 2-bedroom in Vancouver with a budget around $800k. Great! Let me find matching properties for you.\n\nCurrent context:\n- Telegram User ID: {{ $('Extract User Info').item.json.telegram_user_id }}\n- User Name: {{ $('Extract User Info').item.json.first_name }}\n- Current Message: {{ $('Extract User Info').item.json.user_message }}",
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -656,
+        -80
+      ],
+      "id": "03a073ad-9658-4465-8e9d-e0eb59e50a1a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -560,
+        144
+      ],
+      "id": "c2f0d431-2789-4129-8b54-2d56ce983f70",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        128
+      ],
+      "id": "7bdb07dc-7c07-41e8-af69-8d414f54ae80",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Search for an existing lead record by Telegram User ID. Use this FIRST when a user sends a message to check if they've contacted us before.",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl2Cfit3arsQQX3R",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tbl2Cfit3arsQQX3R"
+        },
+        "filterByFormula": "={Telegram User ID} = {{ $('Extract User Info').item.json.telegram_user_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        176
+      ],
+      "id": "6ebe7c29-10d1-430e-a9ad-2eae28f66142",
+      "name": "search_leads",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.clean_response }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -80
+      ],
+      "id": "11d13aa0-ee61-4cb9-883b-f9994310d38e",
+      "name": "Send a text message",
+      "webhookId": "c41efe0c-9fc7-4be9-b75f-834a95418e19",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Create a new lead record when user contacts us for the first time. Only use this if search_leads returned no results. This initializes the lead with their Telegram info and first message.",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl2Cfit3arsQQX3R",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tbl2Cfit3arsQQX3R"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Telegram User ID": "={{ $('Extract User Info').item.json.telegram_user_id }}",
+            "Full Name": "={{ $('Extract User Info').item.json.first_name }}",
+            "Status": "New",
+            "Conversation History": "=User: {{ $('Extract User Info').item.json.user_message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Telegram User ID",
+              "displayName": "Telegram User ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Full Name",
+              "displayName": "Full Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Budget Min",
+              "displayName": "Budget Min",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Budget Max",
+              "displayName": "Budget Max",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Bedrooms Wanted",
+              "displayName": "Bedrooms Wanted",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Preferred Cities",
+              "displayName": "Preferred Cities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "options": [
+                {
+                  "name": "Vancouver",
+                  "value": "Vancouver"
+                },
+                {
+                  "name": "Burnaby",
+                  "value": "Burnaby"
+                },
+                {
+                  "name": "Surrey",
+                  "value": "Surrey"
+                },
+                {
+                  "name": "Richmond",
+                  "value": "Richmond"
+                },
+                {
+                  "name": "North Vancouver",
+                  "value": "North Vancouver"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Immediately",
+                  "value": "Immediately"
+                },
+                {
+                  "name": "Within 1 month",
+                  "value": "Within 1 month"
+                },
+                {
+                  "name": "1-3 months",
+                  "value": "1-3 months"
+                },
+                {
+                  "name": "3-6 months",
+                  "value": "3-6 months"
+                },
+                {
+                  "name": "Just browsing",
+                  "value": "Just browsing"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Buyer Type",
+              "displayName": "Buyer Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "First-time buyer",
+                  "value": "First-time buyer"
+                },
+                {
+                  "name": "Investor",
+                  "value": "Investor"
+                },
+                {
+                  "name": "Upgrading",
+                  "value": "Upgrading"
+                },
+                {
+                  "name": "Downsizing",
+                  "value": "Downsizing"
+                },
+                {
+                  "name": "Cash buyer",
+                  "value": "Cash buyer"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Pre-approved",
+              "displayName": "Pre-approved",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Qualification Score",
+              "displayName": "Qualification Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "New",
+                  "value": "New"
+                },
+                {
+                  "name": "Qualified",
+                  "value": "Qualified"
+                },
+                {
+                  "name": "Contacted",
+                  "value": "Contacted"
+                },
+                {
+                  "name": "Showing Scheduled",
+                  "value": "Showing Scheduled"
+                },
+                {
+                  "name": "Not Interested",
+                  "value": "Not Interested"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Matched Properties",
+              "displayName": "Matched Properties",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Assigned Agent",
+              "displayName": "Assigned Agent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Conversation History",
+              "displayName": "Conversation History",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Created Date",
+              "displayName": "Created Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -272,
+        368
+      ],
+      "id": "697c3171-1a69-4437-8fa4-78995de8f0aa",
+      "name": "create_leads",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "=Update existing lead record with new information extracted from conversation. MUST be called after extracting ANY property details (budget, bedrooms, cities, timeline, buyer type). Always provide the record_id from search_leads result.",
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl2Cfit3arsQQX3R",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tbl2Cfit3arsQQX3R"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Pre-approved": false,
+            "id": "={{ $fromAI('record_id', 'The id field from search_leads result (e.g., recABC123)', 'string') }}",
+            "Budget Min": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Budget_Min', `Minimum budget in dollars (e.g., 250000 for $250k)`, 'number') }}",
+            "Budget Max": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Budget_Max', `Maximum budget in dollars (e.g., 1000000 for $1M)`, 'number') }}",
+            "Bedrooms Wanted": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Bedrooms_Wanted', `Number of bedrooms user wants (e.g., 2, 3, 4)`, 'number') }}",
+            "Qualification Score": 0,
+            "Preferred Cities": "={{ $fromAI('Preferred_Cities', `Array of cities as JSON string like [\"Vancouver\",\"Richmond\"]`, 'json') }}",
+            "Timeline": "={{ $fromAI('Timeline', 'One of: Immediately, Within 1 month, 1-3 months, 3-6 months, Just browsing', 'string') }}",
+            "Buyer Type": "={{ $fromAI('Buyer_Type', 'One of: First-time buyer, Investor, Upgrading, Downsizing, Cash buyer', 'string') }}",
+            "Status": "={{ $fromAI('Status', 'Set to \"New\" initially or \"Qualified\" when lead has budget, bedrooms, and cities', 'string') }}",
+            "Conversation History": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Conversation_History', `Full conversation transcript. Get existing history from search_leads and append current exchange`, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Lead ID",
+              "displayName": "Lead ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Telegram User ID",
+              "displayName": "Telegram User ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Full Name",
+              "displayName": "Full Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Budget Min",
+              "displayName": "Budget Min",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Budget Max",
+              "displayName": "Budget Max",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Bedrooms Wanted",
+              "displayName": "Bedrooms Wanted",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Preferred Cities",
+              "displayName": "Preferred Cities",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "options": [
+                {
+                  "name": "Vancouver",
+                  "value": "Vancouver"
+                },
+                {
+                  "name": "Burnaby",
+                  "value": "Burnaby"
+                },
+                {
+                  "name": "Surrey",
+                  "value": "Surrey"
+                },
+                {
+                  "name": "Richmond",
+                  "value": "Richmond"
+                },
+                {
+                  "name": "North Vancouver",
+                  "value": "North Vancouver"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Immediately",
+                  "value": "Immediately"
+                },
+                {
+                  "name": "Within 1 month",
+                  "value": "Within 1 month"
+                },
+                {
+                  "name": "1-3 months",
+                  "value": "1-3 months"
+                },
+                {
+                  "name": "3-6 months",
+                  "value": "3-6 months"
+                },
+                {
+                  "name": "Just browsing",
+                  "value": "Just browsing"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Buyer Type",
+              "displayName": "Buyer Type",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "First-time buyer",
+                  "value": "First-time buyer"
+                },
+                {
+                  "name": "Investor",
+                  "value": "Investor"
+                },
+                {
+                  "name": "Upgrading",
+                  "value": "Upgrading"
+                },
+                {
+                  "name": "Downsizing",
+                  "value": "Downsizing"
+                },
+                {
+                  "name": "Cash buyer",
+                  "value": "Cash buyer"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Pre-approved",
+              "displayName": "Pre-approved",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Qualification Score",
+              "displayName": "Qualification Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "New",
+                  "value": "New"
+                },
+                {
+                  "name": "Qualified",
+                  "value": "Qualified"
+                },
+                {
+                  "name": "Contacted",
+                  "value": "Contacted"
+                },
+                {
+                  "name": "Showing Scheduled",
+                  "value": "Showing Scheduled"
+                },
+                {
+                  "name": "Not Interested",
+                  "value": "Not Interested"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Matched Properties",
+              "displayName": "Matched Properties",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Assigned Agent",
+              "displayName": "Assigned Agent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Conversation History",
+              "displayName": "Conversation History",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Created Date",
+              "displayName": "Created Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        272
+      ],
+      "id": "24f58ce7-06cf-45e0-886c-7c486921aeaa",
+      "name": "update_leads",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search for properties matching the lead's criteria (budget, bedrooms, cities). Only use this after lead status is \"Qualified\". Returns matching properties from the database.",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appO1t1cZIzSh413d",
+          "mode": "list",
+          "cachedResultName": "Property Lead System",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblJBqdBBIHDQsHZl",
+          "mode": "list",
+          "cachedResultName": "Properties",
+          "cachedResultUrl": "https://airtable.com/appO1t1cZIzSh413d/tblJBqdBBIHDQsHZl"
+        },
+        "filterByFormula": "={{ $fromAI('filter_formula', 'Airtable formula to filter properties (e.g., AND({Price} >= 800000, {Price} <= 1000000, {Bedrooms} = 2))', 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        352
+      ],
+      "id": "fdd69d0a-b4bd-461f-8732-91252ee48fba",
+      "name": "search_properties",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uqnAhXGE6GDWR6Yl",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// const output = $input.item.json.output;\n\n// // Remove tool debug info\n// let cleanResponse = output;\n// if (output.includes('[Used tools:')) {\n//   const lastBracketIndex = output.lastIndexOf(']');\n//   if (lastBracketIndex !== -1) {\n//     cleanResponse = output.substring(lastBracketIndex + 1).trim();\n//   }\n// }\n\n// // Escape markdown special characters for Telegram Legacy\n// cleanResponse = cleanResponse\n//   .replace(/\\_/g, '\\\\_')   // Escape underscores\n//   .replace(/\\*/g, '\\\\*')   // Escape asterisks\n//   .replace(/\\[/g, '\\\\[')   // Escape brackets\n//   .replace(/\\`/g, '\\\\`');  // Escape backticks\n\n// const chatId = $('Extract User Info').item.json.chat_id;\n\n// return [{\n//   json: {\n//     clean_response: cleanResponse,\n//     chat_id: chatId\n//   }\n// }];\n\n\nconst output = $input.item.json.output;\nconst toolCalls = $input.item.json.toolCalls || [];\nconst chatId = $('Extract User Info').item.json.chat_id;\n\n// Clean debug text\nlet cleanResponse = output;\nif (output.includes('[Used tools:')) {\n  const lastBracketIndex = output.lastIndexOf(']');\n  if (lastBracketIndex !== -1) {\n    cleanResponse = output.substring(lastBracketIndex + 1).trim();\n  }\n}\n\n// Check if search_properties was called and has results\nconst searchCall = toolCalls.find(c => c.name === 'search_properties');\nconst hasProperties = searchCall && searchCall.result && searchCall.result.length > 0;\n\nlet propertyData = null;\n\nif (hasProperties) {\n  // Extract properties with photos\n  const properties = searchCall.result;\n  \n  propertyData = properties.map(property => {\n    const photos = property.fields['Photos'] || [];\n    const firstPhoto = photos.length > 0 ? photos[0].url : null;\n    \n    return {\n      property_id: property.fields['Property ID'],\n      address: property.fields['Address'],\n      city: property.fields['City'],\n      price: property.fields['Price'],\n      bedrooms: property.fields['Bedrooms'],\n      bathrooms: property.fields['Bathrooms'],\n      sqft: property.fields['Square Feet'],\n      description: property.fields['Description'],\n      photo_url: firstPhoto,\n      caption: `🏠 ${property.fields['Address']}\n📍 ${property.fields['City']}\n💰 $${property.fields['Price'].toLocaleString()}\n🛏️ ${property.fields['Bedrooms']} bed | 🛁 ${property.fields['Bathrooms']} bath | 📐 ${property.fields['Square Feet']} sqft\n\n${property.fields['Description']}`\n    };\n  });\n}\n\nreturn [{\n  json: {\n    clean_response: cleanResponse,\n    chat_id: chatId,\n    has_properties: hasProperties,\n    properties: propertyData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        -80
+      ],
+      "id": "46b30a4c-3990-458b-8ca9-f4e00a4f3b38",
+      "name": "complete_response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "65b4ad51-0f69-4ec2-b0d9-b3a1012be973",
+              "leftValue": "={{ $('complete_response').item.json.has_properties }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        -80
+      ],
+      "id": "82264315-eee3-4ea2-8186-051967281a9b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "{{ $('complete_response').item.json.properties }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -176
+      ],
+      "id": "bd669087-9ad0-44b3-a58e-e0a5240063a5",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "={{ $json.chat_id }}",
+        "file": "={{ $json.photo_url }}",
+        "additionalFields": {
+          "caption": "={{ $json.caption }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        -176
+      ],
+      "id": "4baf65f5-0c9b-4831-9ae1-57203cf040d2",
+      "name": "Send a photo message",
+      "webhookId": "1a545ff6-236f-4d40-abf2-a3f87e88f906",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        320,
+        16
+      ],
+      "id": "c856932c-e914-405b-8a9e-960ab1ff017d",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract User Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract User Info": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "complete_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_leads": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_properties": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "complete_response": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d84860c7-2cf2-4aff-af77-3d412c84f948",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "6tSA3hbvI2qGF0qz",
+  "tags": []
+}

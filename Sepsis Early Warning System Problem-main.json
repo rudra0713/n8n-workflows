@@ -1,0 +1,961 @@
+{
+  "name": "Sepsis Early Warning System Problem-main",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sepsis-monitor",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        368
+      ],
+      "id": "c66e8461-34d1-4f5e-8841-72e42478fda5",
+      "name": "Receive Patient Data",
+      "webhookId": "bb715737-3824-42f0-b153-868e726ddccd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.all()[0].json;\nconst vitals = item.body.vitals;\n\nlet qsofa = 0;\nconst flags = [];\n\n// qSOFA criteria\nif (vitals.respiratory_rate >= 22) {\n  qsofa++;\n  flags.push(`High RR: ${vitals.respiratory_rate} (≥22)`);\n}\n\nif (vitals.systolic_bp <= 100) {\n  qsofa++;\n  flags.push(`Low SBP: ${vitals.systolic_bp} (≤100)`);\n}\n\nif (vitals.heart_rate >= 100) {\n  flags.push(`Tachycardia: HR ${vitals.heart_rate} (≥100)`);\n}\n\nif (vitals.temperature_c >= 38.3 || vitals.temperature_c <= 36.0) {\n  flags.push(`Abnormal Temp: ${vitals.temperature_c}°C`);\n}\n\nif (vitals.spo2 < 95) {\n  flags.push(`Low SpO2: ${vitals.spo2}% (<95)`);\n}\n\nif (vitals.map < 65) {\n  flags.push(`Low MAP: ${vitals.map} (<65)`);\n}\n\nlet risk_level = \"LOW\";\nif (qsofa === 1) risk_level = \"MODERATE\";\nif (qsofa >= 2) risk_level = \"HIGH\";\n\nreturn [{\n  json: {\n    patient_id: item.body.patient_id,\n    patient_name: item.body.patient_name,\n    age: item.body.age,\n    ward: item.body.ward,\n    bed: item.body.bed,\n    timestamp: item.body.timestamp,\n    data_type: item.body.data_type,\n    vitals: vitals,\n    qsofa_score: qsofa,\n    risk_level: risk_level,\n    flags: flags\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        272
+      ],
+      "id": "1ac0fc08-6a9d-4ee5-b38c-1ef4c96176d1",
+      "name": "Calculate qSOFA"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI",
+          "mode": "list",
+          "cachedResultName": "Sepsis Patient Monitor",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Patient Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_name": "={{ $json.patient_name }}",
+            "patient_id": "={{ $json.patient_id }}",
+            "age": "={{ $json.age }}",
+            "ward": "={{ $json.ward }}",
+            "bed": "={{ $json.bed }}",
+            "timestamp": "={{ $json.timestamp }}",
+            "heart_rate": "={{ $json.vitals.heart_rate }}",
+            "systolic_bp": "={{ $json.vitals. systolic_bp }}",
+            "diastolic_bp": "={{ $json.vitals. diastolic_bp }}",
+            "respiratory_rate": "={{ $json.vitals.respiratory_rate }}",
+            "temperature_c": "={{ $json.vitals. temperature_c }}",
+            "spo2": "={{ $json.vitals.spo2 }}",
+            "map": "={{ $json.vitals.map }}",
+            "qsofa_score": "={{ $json.qsofa_score }}",
+            "risk_level": "={{ $json. risk_level }}",
+            "flags": "={{ $json.flags.join(\", \") }}"
+          },
+          "matchingColumns": [
+            "patient_id"
+          ],
+          "schema": [
+            {
+              "id": "patient_id",
+              "displayName": "patient_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "patient_name",
+              "displayName": "patient_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "age",
+              "displayName": "age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ward",
+              "displayName": "ward",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bed",
+              "displayName": "bed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "heart_rate",
+              "displayName": "heart_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "systolic_bp",
+              "displayName": "systolic_bp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "diastolic_bp",
+              "displayName": "diastolic_bp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "respiratory_rate",
+              "displayName": "respiratory_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "temperature_c",
+              "displayName": "temperature_c",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "spo2",
+              "displayName": "spo2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "map",
+              "displayName": "map",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "qsofa_score",
+              "displayName": "qsofa_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "flags",
+              "displayName": "flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "wbc",
+              "displayName": "wbc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lactate",
+              "displayName": "lactate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "creatinine",
+              "displayName": "creatinine",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "platelets",
+              "displayName": "platelets",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "procalcitonin",
+              "displayName": "procalcitonin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "bilirubin",
+              "displayName": "bilirubin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "band_neutrophils",
+              "displayName": "band_neutrophils",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "lab_timestamp",
+              "displayName": "lab_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        240
+      ],
+      "id": "ef8c2b0d-5b64-409d-a95b-03a982dac104",
+      "name": "Store Vitals",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "910f8b47-0893-41bb-a74f-603d77681dbd",
+              "leftValue": "={{ $json.risk_level }}",
+              "rightValue": "HIGH",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        368
+      ],
+      "id": "74a947cd-f60c-49d0-852a-622f592c3a2a",
+      "name": "Is High Risk?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        512
+      ],
+      "id": "c0d9b40f-6732-4d66-8aac-82e7193cfd3e",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI",
+          "mode": "list",
+          "cachedResultName": "Sepsis Patient Monitor",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Patient Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "patient_id",
+              "lookupValue": "={{ $json.body.patient_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        464
+      ],
+      "id": "d7bfa54a-7eb7-4730-b4ed-9596fa3c2b0a",
+      "name": "Pull Patient Vitals",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const labData = $('Route Data Type').first().json.body;\nconst vitals = $('Pull Patient Vitals').first().json;\n\nlet sofa = 0;\nconst flags = [];\n\n// --- Vitals-based scoring ---\nif (vitals.respiratory_rate >= 22) {\n  sofa++;\n  flags.push(`High RR: ${vitals.respiratory_rate} (≥22)`);\n}\nif (vitals.systolic_bp <= 100) {\n  sofa++;\n  flags.push(`Low SBP: ${vitals.systolic_bp} (≤100)`);\n}\nif (vitals.heart_rate >= 100) {\n  sofa++;\n  flags.push(`Tachycardia: HR ${vitals.heart_rate} (≥100)`);\n}\nif (vitals.map < 65) {\n  sofa++;\n  flags.push(`Low MAP: ${vitals.map} (<65)`);\n}\nif (vitals.spo2 < 95) {\n  sofa++;\n  flags.push(`Low SpO2: ${vitals.spo2}% (<95)`);\n}\nif (vitals.temperature_c >= 38.3 || vitals.temperature_c <= 36.0) {\n  sofa++;\n  flags.push(`Abnormal Temp: ${vitals.temperature_c}°C`);\n}\n\n// --- Lab-based scoring ---\nif (labData.labs.wbc > 12 || labData.labs.wbc < 4) {\n  sofa++;\n  flags.push(`Abnormal WBC: ${labData.labs.wbc} (normal 4-12)`);\n}\nif (labData.labs.lactate > 2.0) {\n  sofa += 2;\n  flags.push(`Elevated Lactate: ${labData.labs.lactate} (>2.0)`);\n}\nif (labData.labs.creatinine > 1.2) {\n  sofa++;\n  flags.push(`Elevated Creatinine: ${labData.labs.creatinine} (>1.2)`);\n}\nif (labData.labs.platelets < 150) {\n  sofa++;\n  flags.push(`Low Platelets: ${labData.labs.platelets} (<150)`);\n}\nif (labData.labs.procalcitonin > 0.5) {\n  sofa += 2;\n  flags.push(`Elevated Procalcitonin: ${labData.labs.procalcitonin} (>0.5)`);\n}\nif (labData.labs.bilirubin > 1.2) {\n  sofa++;\n  flags.push(`Elevated Bilirubin: ${labData.labs.bilirubin} (>1.2)`);\n}\nif (labData.labs.band_neutrophils > 10) {\n  sofa++;\n  flags.push(`Elevated Bands: ${labData.labs.band_neutrophils}% (>10%)`);\n}\n\n// --- Risk classification ---\nlet risk_level = \"LOW\";\nif (sofa >= 3) risk_level = \"MODERATE\";\nif (sofa >= 6) risk_level = \"HIGH\";\nif (sofa >= 9) risk_level = \"CRITICAL\";\n\nreturn [{\n  json: {\n    patient_id: labData.patient_id,\n    patient_name: labData.patient_name,\n    age: labData.age,\n    ward: labData.ward,\n    bed: labData.bed,\n    vitals_timestamp: vitals.timestamp,\n    labs_timestamp: labData.timestamp,\n    data_type: \"combined\",\n    vitals: {\n      heart_rate: parseFloat(vitals.heart_rate),\n      systolic_bp: parseFloat(vitals.systolic_bp),\n      diastolic_bp: parseFloat(vitals.diastolic_bp),\n      respiratory_rate: parseFloat(vitals.respiratory_rate),\n      temperature_c: parseFloat(vitals.temperature_c),\n      spo2: parseFloat(vitals.spo2),\n      map: parseFloat(vitals.map)\n    },\n    labs: labData.labs,\n    sofa_score: sofa,\n    risk_level: risk_level,\n    flags: flags\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        512
+      ],
+      "id": "b131c9a4-0efb-49df-affe-23b481c1513c",
+      "name": "Calculate Full Risk"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "16631fa0-8b71-4e8a-a185-fc8703e9d30b",
+              "leftValue": "={{ $json.risk_level }} ",
+              "rightValue": "HIGH",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "c5111006-9186-4799-aeac-65d2df637b78",
+              "leftValue": "={{ $json.risk_level }} ",
+              "rightValue": "CRITICAL",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        640
+      ],
+      "id": "8333497b-3c2d-43b2-b274-21d9b4cbbda9",
+      "name": "Is Combined High Risk?"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI",
+          "mode": "list",
+          "cachedResultName": "Sepsis Patient Monitor",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Patient Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iC9JY4X-nS52LLmwN66DqGUUE5PiBNYHdpq3Gf0bbrI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_id": "={{ $json.patient_id }}",
+            "wbc": "={{ $json.labs.wbc }}",
+            "lactate": "={{ $json.labs.lactate }}",
+            "creatinine": "={{ $json.labs.creatinine }}",
+            "platelets": "={{ $json.labs.platelets }}",
+            "procalcitonin": "={{ $json.labs.procalcitonin }}",
+            "bilirubin": "={{ $json.labs.bilirubin }}",
+            "band_neutrophils": "={{ $json.labs.band_neutrophils }}",
+            "lab_timestamp": "={{ $json.labs_timestamp }}"
+          },
+          "matchingColumns": [
+            "patient_id"
+          ],
+          "schema": [
+            {
+              "id": "patient_id",
+              "displayName": "patient_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "patient_name",
+              "displayName": "patient_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "age",
+              "displayName": "age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "ward",
+              "displayName": "ward",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "bed",
+              "displayName": "bed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "heart_rate",
+              "displayName": "heart_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "systolic_bp",
+              "displayName": "systolic_bp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "diastolic_bp",
+              "displayName": "diastolic_bp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "respiratory_rate",
+              "displayName": "respiratory_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "temperature_c",
+              "displayName": "temperature_c",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "spo2",
+              "displayName": "spo2",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "map",
+              "displayName": "map",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "qsofa_score",
+              "displayName": "qsofa_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "risk_level",
+              "displayName": "risk_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "flags",
+              "displayName": "flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "wbc",
+              "displayName": "wbc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lactate",
+              "displayName": "lactate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "creatinine",
+              "displayName": "creatinine",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "platelets",
+              "displayName": "platelets",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "procalcitonin",
+              "displayName": "procalcitonin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bilirubin",
+              "displayName": "bilirubin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "band_neutrophils",
+              "displayName": "band_neutrophils",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lab_timestamp",
+              "displayName": "lab_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        912,
+        496
+      ],
+      "id": "5de18941-ca93-4fc0-ac13-d7a116183e12",
+      "name": "Store Labs",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "+17786529202",
+        "to": "+16044401293",
+        "message": "=🚨 SEPSIS {{ $json.risk_level }} 🚨\n{{ $json.patient_name }} ({{ $json.patient_id }})\n{{ $json.ward }}, Bed {{ $json.bed }}\nFlags: {{ $json.flags.length }}\n{{ $json.flags.slice(0, 2).join(\", \") }}\nAction required.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        352
+      ],
+      "id": "6d3cbba7-3928-4b5a-9d83-10df6ebaa436",
+      "name": "Send Alert",
+      "credentials": {
+        "twilioApi": {
+          "id": "4ryAKh0YHM7TOTsh",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.data_type }}",
+                    "rightValue": "vitals",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b0a98db0-7387-4a16-89da-7fc6a8ea9f9c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "vitals"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "783463aa-2b5c-4f0f-8b49-d0e7a7f24fbd",
+                    "leftValue": "={{ $json.body.data_type }}",
+                    "rightValue": "labs",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "labs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        208,
+        368
+      ],
+      "id": "354de586-e1e2-4d1a-b3ba-229c821e23df",
+      "name": "Route Data Type"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Patient Data": {
+      "main": [
+        [
+          {
+            "node": "Route Data Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate qSOFA": {
+      "main": [
+        [
+          {
+            "node": "Store Vitals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is High Risk?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is High Risk?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull Patient Vitals": {
+      "main": [
+        [
+          {
+            "node": "Calculate Full Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Full Risk": {
+      "main": [
+        [
+          {
+            "node": "Is Combined High Risk?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Labs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Combined High Risk?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Data Type": {
+      "main": [
+        [
+          {
+            "node": "Calculate qSOFA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pull Patient Vitals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8c9fefda-c072-4e54-b68f-1d91e40b710e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "kxz4fuEWvAdONqmk",
+  "tags": []
+}

@@ -1,0 +1,365 @@
+{
+  "name": "Legal Database Search",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "53661431-b7af-49bc-81b2-92be95c5580c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.courtlistener.com/api/rest/v4/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "o"
+            },
+            {
+              "name": "q",
+              "value": "wrongful termination OR wage hour"
+            },
+            {
+              "name": "court",
+              "value": "calctapp"
+            },
+            {
+              "name": "filed_after",
+              "value": "2024-12-05"
+            },
+            {
+              "name": "order_by",
+              "value": "dateFiled desc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token 87d5fb974f14ed0d162a4c8676b0371bb93822bb"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3cec33c8-91f1-4796-b538-11dac58e53e2",
+      "name": "Search API"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.courtlistener.com/api/rest/v4/opinions/ {{ $json.opinions[0].id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token 87d5fb974f14ed0d162a4c8676b0371bb93822bb"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "1b96fe45-4604-460a-a08d-2b8a0d29e6c9",
+      "name": "Opinions API"
+    },
+    {
+      "parameters": {
+        "text": "=Analyze the following California Court of Appeal opinion and extract key information for attorney research.\n\nCase Name: {{ $('Split Out').item.json.caseName }}\nCourt: {{ $('Split Out').item.json.court }}\nDate Filed: {{ $('Split Out').item.json.dateFiled }}\nDocket Number: {{ $('Split Out').item.json.docketNumber }}\n\nFull Opinion Text:\n{{ $json.plain_text }}\n\nInstructions:\n- Identify the primary practice area (Employment Law, Family Law, Criminal Law, Civil Rights, Contract Law, Tort Law, etc.)\n- Extract the main legal issue and the court's holding\n- Summarize key facts that led to the decision\n- Explain the court's reasoning\n- Include one powerful quote (under 200 chars) that captures the essence of the ruling\n- Note the procedural posture (trial court decision, what happened on appeal)\n- Assess the practical impact for attorneys\n- Identify distinguishing factors that make this case unique\n- Suggest how attorneys could apply this case\n- Rate relevance as High (landmark/significant impact), Medium (important precedent), or Low (narrow application)\n\nFor bullet point fields (key_facts, distinguishing_factors), format as:\n- Point one\n- Point two\n- Point three",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"case_name\": {\n      \"type\": \"string\",\n      \"description\": \"Full case name\"\n    },\n    \"citation\": {\n      \"type\": \"string\",\n      \"description\": \"Case citation if available, or 'Not yet available' if not\"\n    },\n    \"court\": {\n      \"type\": \"string\",\n      \"description\": \"Full court name\"\n    },\n    \"date_filed\": {\n      \"type\": \"string\",\n      \"description\": \"Date the opinion was filed (YYYY-MM-DD format)\"\n    },\n    \"docket_number\": {\n      \"type\": \"string\",\n      \"description\": \"Court docket number\"\n    },\n    \"practice_area\": {\n      \"type\": \"string\",\n      \"description\": \"Primary practice area (e.g., Employment Law, Family Law, Criminal Law, Civil Rights, etc.)\"\n    },\n    \"issue\": {\n      \"type\": \"string\",\n      \"description\": \"The main legal issue addressed by the court in 1-2 sentences\"\n    },\n    \"holding\": {\n      \"type\": \"string\",\n      \"description\": \"The court's holding/decision in 2-3 sentences\"\n    },\n    \"key_facts\": {\n      \"type\": \"string\",\n      \"description\": \"Key facts of the case as 3-5 bullet points in a single string\"\n    },\n    \"reasoning\": {\n      \"type\": \"string\",\n      \"description\": \"Court's legal reasoning in 3-4 sentences\"\n    },\n    \"relevant_quote\": {\n      \"type\": \"string\",\n      \"description\": \"One key quote from the opinion under 200 characters\"\n    },\n    \"procedural_posture\": {\n      \"type\": \"string\",\n      \"description\": \"Brief procedural history in 1-2 sentences\"\n    },\n    \"impact\": {\n      \"type\": \"string\",\n      \"description\": \"Practical impact and significance in 2-3 sentences\"\n    },\n    \"distinguishing_factors\": {\n      \"type\": \"string\",\n      \"description\": \"Key distinguishing factors as 2-4 bullet points in a single string\"\n    },\n    \"practical_applications\": {\n      \"type\": \"string\",\n      \"description\": \"How attorneys can use this case in 2-3 sentences\"\n    },\n    \"relevance_score\": {\n      \"type\": \"string\",\n      \"enum\": [\"High\", \"Medium\", \"Low\"],\n      \"description\": \"Relevance score based on practice area importance and impact\"\n    }\n  },\n  \"required\": [\n    \"case_name\",\n    \"citation\",\n    \"court\",\n    \"date_filed\",\n    \"docket_number\",\n    \"practice_area\",\n    \"issue\",\n    \"holding\",\n    \"key_facts\",\n    \"reasoning\",\n    \"relevant_quote\",\n    \"procedural_posture\",\n    \"impact\",\n    \"distinguishing_factors\",\n    \"practical_applications\",\n    \"relevance_score\"\n  ],\n  \"additionalProperties\": false\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "6d5621be-d1c5-4c62-a2c9-1c4f0886fcfe",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        768,
+        208
+      ],
+      "id": "eecaccdb-5202-470e-88c9-1750c8838fd7",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1j9LR-tCEuLdiiKCUUs49H0HLlCmOULypriiaQtUvAJg",
+          "mode": "list",
+          "cachedResultName": "n8n Legal Cases Tracking Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1j9LR-tCEuLdiiKCUUs49H0HLlCmOULypriiaQtUvAJg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1j9LR-tCEuLdiiKCUUs49H0HLlCmOULypriiaQtUvAJg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "case_name": "={{ $json.output.case_name }}",
+            "court": "={{ $json.output.court }}",
+            "date_filed": "={{ $json.output.date_filed }}",
+            "docket_number": "={{ $json.output.docket_number }}",
+            "practice_area": "={{ $json.output.practice_area }}",
+            "issue": "={{ $json.output.issue }}",
+            "holding": "={{ $json.output.holding }}",
+            "key_facts": "={{ $json.output.key_facts }}",
+            "reasoning": "={{ $json.output.reasoning }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "case_name",
+              "displayName": "case_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "court",
+              "displayName": "court",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date_filed",
+              "displayName": "date_filed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "docket_number",
+              "displayName": "docket_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "practice_area",
+              "displayName": "practice_area",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "issue",
+              "displayName": "issue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "holding",
+              "displayName": "holding",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "key_facts",
+              "displayName": "key_facts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reasoning",
+              "displayName": "reasoning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "f737c8ed-59da-42da-ab74-5c1725d5acb9",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "J3dN7ZIxeZZLzpbq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "36dbdec6-1614-4dd8-855e-b1cdf17bd2b5",
+      "name": "Split Out"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Search API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search API": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Opinions API": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Opinions API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7257a346-b803-4931-aa70-d080954102a9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "AKYNodDxF2yEMsX8",
+  "tags": []
+}

@@ -1,0 +1,781 @@
+{
+  "name": "Client Onboarding - Real Estate",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "772616b6-3211-466f-9b23-4e0e955ae58a",
+      "name": "Receive Client Submissions",
+      "webhookId": "d66c75d1-271e-40f7-b990-0976d746bcd6",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice?.file_id || $json.message.audio?.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        416,
+        -96
+      ],
+      "id": "0b70475a-c07d-4926-840f-dad63bb837ac",
+      "name": "Get a file",
+      "webhookId": "b886daa6-f115-433c-8300-c1265ebdd346",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "translate",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "5a70d68f-c748-4ef9-83ae-6a897942a5e8",
+      "name": "Translate a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        528,
+        80
+      ],
+      "id": "01f45df0-be22-4fe4-acf6-9aa44a06d105",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        256
+      ],
+      "id": "b680a015-7b5d-4ff6-9bf7-8d2d98c1bb5d",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "875464b6-78ef-4ec5-9219-976d4cde8f72",
+              "leftValue": "={{ $json.message?.voice }}",
+              "rightValue": "'true'",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "fb5e2360-bc1c-407d-a6a2-dfb17aa08759",
+              "leftValue": "={{ $json.message?.audio }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c221fc90-ffc4-45c7-bad9-9a3b0de1886e",
+      "name": "Is Audio or Document?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b4dfca5b-50c4-4406-b6c8-dfed88b5afc8",
+              "leftValue": "={{ $json.is_complete}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        16
+      ],
+      "id": "29fa6d36-36ad-49ca-8874-8c724705c9bc",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Is Audio or Document?').item.json.message.chat.id }}",
+        "text": "={{ $('Code').item.json.message}}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        0
+      ],
+      "id": "d89b1103-41d2-43f7-a1cd-b856f1f76466",
+      "name": "Send a text message",
+      "webhookId": "c01ac291-2dcb-4aa1-a7b2-e7c3d0454ab9",
+      "credentials": {
+        "telegramApi": {
+          "id": "eHL5qvqARdwG9s7g",
+          "name": "Telegram account Real Estate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n\n// List of required fields (everything except status and chat_id)\nconst requiredFields = [\n  'property_location',\n  'property_type', \n  'budget',\n  'client_name',\n  'client_address',\n  'client_email',\n  'client_phone_number'\n];\n\n// Check which fields are blank/empty\nconst missingFields = requiredFields.filter(field => {\n  const value = row[field];\n  return !value || value === '' || value === null || value === undefined;\n});\n\n// All complete if no missing fields\nconst isComplete = missingFields.length === 0;\n\n// Set message based on completion status\nconst message = isComplete \n  ? \"Thanks for the information. An agent will contact you soon.\"\n  : \"Please provide the remaining information.\";\n\nreturn [{\n  json: {\n    ...row,\n    is_complete: isComplete,\n    message: message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        16
+      ],
+      "id": "abbd8301-6316-490a-9574-00db0d8df481",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA",
+          "mode": "list",
+          "cachedResultName": "Client Onboarding",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Is Audio or Document?').item.json.message.chat.id}}",
+            "property_location": "={{ $('Information Extractor').item.json.output.property_location || $('Check Data Exists').item.json.property_type || '' }}",
+            "property_type": "={{ $('Information Extractor').item.json.output.property_type || $('Check Data Exists').item.json.property_type || '' }}",
+            "budget": "={{ $('Information Extractor').item.json.output.budget || $('Check Data Exists').item.json.budget || '' }}",
+            "status": "Pending",
+            "client_name": "={{ $('Information Extractor').item.json.output.client_name || $('Check Data Exists').item.json.client_name || '' }}",
+            "client_address": "={{ $('Information Extractor').item.json.output.client_address || $('Check Data Exists').item.json.client_address || '' }}",
+            "client_email": "={{ $('Information Extractor').item.json.output.client_email || $('Check Data Exists').item.json.client_email || '' }}",
+            "client_phone_number": "={{ \"'\" + ($('Information Extractor').item.json.output.client_phone_number || $('Check Data Exists').item.json.client_phone_number || '') }}"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_location",
+              "displayName": "property_location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "property_type",
+              "displayName": "property_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "budget",
+              "displayName": "budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "client_address",
+              "displayName": "client_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "client_phone_number",
+              "displayName": "client_phone_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1312,
+        16
+      ],
+      "id": "3c5853be-68a2-4717-b838-b60a795f5047",
+      "name": "Prepare Sheet Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA",
+          "mode": "list",
+          "cachedResultName": "Client Onboarding",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Is Audio or Document?').item.json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "4dab23dc-9ebf-469e-b323-1e5b4e9d98b1",
+      "name": "Check Data Exists",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA",
+          "mode": "list",
+          "cachedResultName": "Client Onboarding",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "chat_id",
+              "lookupValue": "={{ $('Is Audio or Document?').item.json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1488,
+        16
+      ],
+      "id": "f17b270f-3f57-4e4d-a10d-afc2b369fdec",
+      "name": "Check All fields Present",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA",
+          "mode": "list",
+          "cachedResultName": "Client Onboarding",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Ae24zVRDAOvhz5NPJW0FYLuFnrt348RWczQYOzkeBXA/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Is Audio or Document?').item.json.message.chat.id }}",
+            "status": "Complete"
+          },
+          "matchingColumns": [
+            "chat_id"
+          ],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_location",
+              "displayName": "property_location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "property_type",
+              "displayName": "property_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "budget",
+              "displayName": "budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "client_name",
+              "displayName": "client_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "client_address",
+              "displayName": "client_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "client_email",
+              "displayName": "client_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "client_phone_number",
+              "displayName": "client_phone_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1952,
+        -160
+      ],
+      "id": "06008a84-e5a0-42a7-b723-05aa519d2716",
+      "name": "Update Status Field",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kO7QHk4Z6wfZ7sgp",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text}}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"property_location\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The neighborhood, area, or city where the client wants to find property (e.g., Kitsilano, Downtown Vancouver, Burnaby). Set to null if not mentioned.\"\n    },\n    \"property_type\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The type of property: condo, house, townhouse, apartment, duplex. Set to null if not mentioned.\"\n    },\n    \"budget\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The client's budget as a numeric value or string (e.g., 900000 or 500K). Set to null if not mentioned.\"\n    },\n    \"client_name\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The full name of the client including first and last name. Set to null if not mentioned.\"\n    },\n    \"client_address\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The complete current residential address including street, apartment, city, province, and postal code. Set to null if not mentioned.\"\n    },\n    \"client_email\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The email address in standard format (e.g., name@example.com). Set to null if not mentioned.\"\n    },\n    \"client_phone_number\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"The phone number with country code and formatting (e.g., +1 (604) 555-0199). Set to null if not mentioned.\"\n    }\n  },\n  \"required\": [\"property_location\", \"property_type\", \"budget\", \"client_name\", \"client_address\", \"client_email\", \"client_phone_number\"]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        16
+      ],
+      "id": "95991525-a3f9-4468-9118-c1eb8a3e30aa",
+      "name": "Information Extractor"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Client Submissions": {
+      "main": [
+        [
+          {
+            "node": "Is Audio or Document?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Translate a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Translate a recording": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Audio or Document?": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update Status Field",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet Data": {
+      "main": [
+        [
+          {
+            "node": "Check All fields Present",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Data Exists": {
+      "main": [
+        [
+          {
+            "node": "Prepare Sheet Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check All fields Present": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status Field": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Check Data Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7b2b9453-6699-4829-9737-bbe347f58046",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "7bK8CvohDIv9mJkz",
+  "tags": []
+}

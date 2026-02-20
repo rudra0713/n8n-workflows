@@ -1,0 +1,719 @@
+{
+  "name": "Listing Description Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Listing Description Generator",
+        "formDescription": "Upload your property details and photos to generate professional MLS and Zillow listing descriptions automatically.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Property Details",
+              "fieldType": "textarea",
+              "placeholder": "Paste all property information here (address, beds, baths, price, square footage, features, etc.) Required: Toggle ON ✅ Placeholder: Example: 456 Maple Ave, Portland OR 97201 Single-family home 4 bed, 3 bath 2,400 sq ft $850,000 Pool, garage, renovated kitchen",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Google Drive Folder Link",
+              "placeholder": "https://drive.google.com/drive/folders/...",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Generate Descriptions",
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "⏳ Processing your listing descriptions... This will take about 30-60 seconds. Please wait."
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "2012de58-20f7-405d-a8e3-9563f90b3fc2",
+      "name": "On form submission",
+      "webhookId": "615339e4-641c-4f34-b136-5782260742a9"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Extract property details from this text:\n\n{{ $json.property_details_text }}\n\nReturn ONLY a JSON object with these fields:\n{\n  \"address\": \"full street address\",\n  \"city\": \"city name\",\n  \"state\": \"state code\",\n  \"zip\": \"zip code\",\n  \"property_type\": \"single-family/condo/townhouse/multi-family\",\n  \"bedrooms\": number,\n  \"bathrooms\": number,\n  \"square_footage\": number,\n  \"price\": number,\n  \"year_built\": number or null,\n  \"special_features\": \"comma-separated list of features\"\n}"
+            },
+            {
+              "role": "system",
+              "content": "You are a real estate data parser. Extract structured property information from free-form text and return ONLY valid JSON with no markdown formatting."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"address\": {\n      \"type\": \"string\",\n      \"description\": \"Full street address\"\n    },\n    \"city\": {\n      \"type\": \"string\",\n      \"description\": \"City name\"\n    },\n    \"state\": {\n      \"type\": \"string\",\n      \"description\": \"State code (e.g., OR, CA, WA)\"\n    },\n    \"zip\": {\n      \"type\": \"string\",\n      \"description\": \"ZIP code\"\n    },\n    \"property_type\": {\n      \"type\": \"string\",\n      \"description\": \"Type of property: single-family, condo, townhouse, or multi-family\"\n    },\n    \"bedrooms\": {\n      \"type\": \"number\",\n      \"description\": \"Number of bedrooms\"\n    },\n    \"bathrooms\": {\n      \"type\": \"number\",\n      \"description\": \"Number of bathrooms (can be decimal like 2.5)\"\n    },\n    \"square_footage\": {\n      \"type\": \"number\",\n      \"description\": \"Total square footage of the property\"\n    },\n    \"price\": {\n      \"type\": \"number\",\n      \"description\": \"Listing price in dollars\"\n    },\n    \"year_built\": {\n      \"type\": \"number\",\n      \"description\": \"Year the property was built\"\n    },\n    \"special_features\": {\n      \"type\": \"string\",\n      \"description\": \"Comma-separated list of special features and amenities\"\n    }\n  },\n  \"required\": [\"address\", \"city\", \"state\", \"zip\", \"property_type\", \"bedrooms\", \"bathrooms\", \"square_footage\", \"price\", \"year_built\", \"special_features\"],\n  \"additionalProperties\": false\n}"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "ffcaa9c1-faa9-435e-980a-ea782d180a4c",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "=",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE",
+            "mode": "list",
+            "cachedResultName": "townhouse",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "562fb114-4488-417a-873b-4eef3952bb77",
+      "name": "Search files and folders",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EgtIZvDGSy0hwwrS",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2ab94387-c00e-4e13-9071-a6a63d5e9cba",
+              "name": "folder_link",
+              "value": "={{ $json[\"Google Drive Folder Link\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "27398555-137a-4822-803b-da648edf4df0",
+              "name": "property_details_text",
+              "value": "={{ $json[\"Property Details\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "28208624-b976-4e13-ab19-68f2b9a05f9e",
+      "name": "form_input"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "image_url"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        0
+      ],
+      "id": "6c0733bf-a7bd-492b-b8de-ad2680426c54",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        288
+      ],
+      "id": "1faf5e9c-0c9e-438e-b187-d2ec16d94765",
+      "name": "HTTP Request",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the Vision AI response\nconst visionResponse = $json.choices[0].message.content;\n\n// Parse the JSON string\nconst visionAnalysis = JSON.parse(visionResponse);\n\n// Return the parsed analysis\nreturn {\n  json: {\n    vision_analysis: visionAnalysis\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        288
+      ],
+      "id": "a6baca08-deab-46a5-a099-b95e434be15c",
+      "name": "Parse Vision Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const imageUrls = $json.image_url;\n\nreturn {\n  json: {\n    model: \"gpt-4o-mini\",\n    messages: [\n      {\n        role: \"system\",\n        content: \"You are a professional real estate property analyst. Analyze property photos and extract detailed features in structured JSON format.\"\n      },\n      {\n        role: \"user\",\n        content: [\n          {\n            type: \"text\",\n            text: `Analyze ALL the provided property photos and extract detailed features.\n\nReturn ONLY valid JSON:\n{\n  \"interior\": {\n    \"flooring\": \"description\",\n    \"kitchen\": \"features\",\n    \"bathrooms\": \"features\",\n    \"special_rooms\": \"features\",\n    \"architectural_details\": \"details\",\n    \"fireplace\": \"details\"\n  },\n  \"exterior\": {\n    \"style\": \"style\",\n    \"materials\": \"materials\",\n    \"landscaping\": \"description\",\n    \"outdoor_living\": \"features\",\n    \"other\": \"garage, etc\"\n  },\n  \"condition\": {\n    \"renovation_status\": \"status\",\n    \"quality_level\": \"level\",\n    \"maintenance\": \"condition\"\n  },\n  \"hero_photos\": [\n    {\"rank\": 1, \"photo_filename\": \"extract filename from URL\", \"reason\": \"why\", \"confidence\": 95}\n  ]\n}`\n          },\n          ...imageUrls.map(url => ({\n            type: \"image_url\",\n            image_url: { url: url }\n          }))\n        ]\n      }\n    ],\n    response_format: { type: \"json_object\" },\n    max_tokens: 2000\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        288
+      ],
+      "id": "c15a302a-4bff-4b47-b07f-e030a2250963",
+      "name": "Build Vision API request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all image files from Google Drive\nconst imageFiles = $input.all();\n\n// Build direct view URLs for each image\nconst imageUrls = imageFiles.map(item => {\n  const fileId = item.json.id;\n  const fileName = item.json.name;\n  \n  return {\n    file_id: fileId,\n    file_name: fileName,\n    image_url: `https://drive.google.com/uc?export=view&id=${fileId}`\n  };\n});\n\n// Return as array for Vision AI to process\nreturn imageUrls.map(img => ({ json: img }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "91093124-e144-4737-98bf-bb927517aa38",
+      "name": "Build image URLs"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the AI response - it's in output[0].content[0].text\nlet parsedProperty;\n\nif ($json.output && Array.isArray($json.output) && $json.output[0]) {\n  const outputItem = $json.output[0];\n  \n  if (outputItem.content && Array.isArray(outputItem.content) && outputItem.content[0]) {\n    parsedProperty = outputItem.content[0].text;\n  }\n}\n\n// Validate we got the property data\nif (!parsedProperty || !parsedProperty.address) {\n  throw new Error('Could not find property data. Structure: ' + JSON.stringify($json).substring(0, 500));\n}\n\n// Get folder link from the Set node by name\nconst folderUrl = $('form_input').item.json.folder_link;\n\nif (!folderUrl) {\n  throw new Error('folder_link not found in form_input node');\n}\n\n// Extract folder ID from Google Drive URL\nconst match = folderUrl.match(/folders\\/([a-zA-Z0-9_-]+)/);\n\nif (!match || !match[1]) {\n  throw new Error('Invalid Google Drive folder URL: ' + folderUrl);\n}\n\n// Return everything combined\nreturn {\n  json: {\n    address: parsedProperty.address,\n    city: parsedProperty.city,\n    state: parsedProperty.state,\n    zip: parsedProperty.zip,\n    property_type: parsedProperty.property_type,\n    bedrooms: parsedProperty.bedrooms,\n    bathrooms: parsedProperty.bathrooms,\n    square_footage: parsedProperty.square_footage,\n    price: parsedProperty.price,\n    year_built: parsedProperty.year_built,\n    special_features: parsedProperty.special_features,\n    folder_id: match[1],\n    folder_url: folderUrl\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "e7cbe258-fc8f-4a2f-af70-c2e1a1e4a802",
+      "name": "Extract Property Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get property data from Extract Property Data node\nconst propertyData = $('Extract Property Data').item.json;\n\n// Get vision analysis from Parse Vision Response node\nconst visionData = $('Parse Vision Response').item.json.vision_analysis;\n\n// Get neighborhood data from sub-workflow\nconst neighborhoodData = $('Get Neighborhood Data').item.json;\n\n// Merge everything into one object\nreturn {\n  json: {\n    // Property basics\n    address: propertyData.address,\n    city: propertyData.city,\n    state: propertyData.state,\n    zip: propertyData.zip,\n    property_type: propertyData.property_type,\n    bedrooms: propertyData.bedrooms,\n    bathrooms: propertyData.bathrooms,\n    square_footage: propertyData.square_footage,\n    price: propertyData.price,\n    year_built: propertyData.year_built,\n    special_features: propertyData.special_features,\n    \n    // Vision analysis from photos\n    interior: visionData.interior,\n    exterior: visionData.exterior,\n    condition: visionData.condition,\n    hero_photos: visionData.hero_photos,\n    \n    // Neighborhood data\n    schools: neighborhoodData.schools,\n    restaurants: neighborhoodData.restaurants,\n    transportation: neighborhoodData.transportation\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        288
+      ],
+      "id": "bd41bae8-a21b-49c3-9926-89b82bc3a0ae",
+      "name": "Merge Descriptions"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Write a professional MLS listing description for this property:\n\nADDRESS: {{ $json.address }}, {{ $json.city }}, {{ $json.state }} {{ $json.zip }}\nTYPE: {{ $json.property_type }}\nBEDS/BATHS: {{ $json.bedrooms }} bed, {{ $json.bathrooms }} bath\nSQUARE FOOTAGE: {{ $json.square_footage }} sq ft\nPRICE: ${{ $json.price }}\nYEAR BUILT: {{ $json.year_built }}\n\nSPECIAL FEATURES:\n{{ $json.special_features }}\n\nINTERIOR (from photo analysis):\n- Flooring: {{ $json.interior.flooring }}\n- Kitchen: {{ $json.interior.kitchen }}\n- Bathrooms: {{ $json.interior.bathrooms }}\n- Special Rooms: {{ $json.interior.special_rooms }}\n- Architectural Details: {{ $json.interior.architectural_details }}\n- Fireplace: {{ $json.interior.fireplace }}\n\nEXTERIOR (from photo analysis):\n- Style: {{ $json.exterior.style }}\n- Materials: {{ $json.exterior.materials }}\n- Landscaping: {{ $json.exterior.landscaping }}\n- Outdoor Living: {{ $json.exterior.outdoor_living }}\n- Other: {{ $json.exterior.other }}\n\nCONDITION:\n- Renovation Status: {{ $json.condition.renovation_status }}\n- Quality Level: {{ $json.condition.quality_level }}\n- Maintenance: {{ $json.condition.maintenance }}\n\nNEIGHBORHOOD & LOCATION:\nSchools:\n{{ $json.schools.nearby.map(s => `- ${s.name} (${s.type}, ${s.distance}, rated ${s.rating})`).join('\\n') }}\n\nDining & Lifestyle:\n- {{ $json.restaurants.count }} restaurants nearby\n- Top rated: {{ $json.restaurants.top_rated.slice(0, 3).join(', ') }}\n\nTransportation:\n{{ $json.transportation.nearby_stops.length > 0 ? $json.transportation.nearby_stops.map(t => `- ${t.name} (${t.distance})`).join('\\n') : '- Convenient access to public transit' }}\n\nREQUIREMENTS:\n- Write 250-350 words\n- Professional MLS tone\n- SEO-optimized (include property type, city, neighborhood name, school names, key features)\n- Highlight walkability and location benefits prominently\n- Include bullet points for key features\n- Mention specific schools by name for SEO\n- End with strong call-to-action\n- Return ONLY the description text, no formatting markers"
+            },
+            {
+              "role": "system",
+              "content": "You are an expert real estate copywriter specializing in MLS listings. Write professional, SEO-optimized descriptions that highlight key features and sell the property."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 600,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        288
+      ],
+      "id": "0153332c-8820-4e19-b4d4-6d50fc1b52b3",
+      "name": "Generate MLS Description",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Write an engaging Zillow listing description for this property:\n\nADDRESS: {{ $('Merge Descriptions').item.json.address }}, {{ $('Merge Descriptions').item.json.city }}, {{ $('Merge Descriptions').item.json.state }}\nTYPE: {{ $('Merge Descriptions').item.json.property_type }}\nBEDS/BATHS: {{ $('Merge Descriptions').item.json.bedrooms }} bed, {{ $('Merge Descriptions').item.json.bathrooms }} bath\nPRICE: ${{ $('Merge Descriptions').item.json.price }}\n\nSPECIAL FEATURES:\n{{ $('Merge Descriptions').item.json.special_features }}\n\nINTERIOR (from photo analysis):\n- Flooring: {{ $('Merge Descriptions').item.json.interior.flooring }}\n- Kitchen: {{ $('Merge Descriptions').item.json.interior.kitchen }}\n- Bathrooms: {{ $('Merge Descriptions').item.json.interior.bathrooms }}\n- Special Rooms: {{ $('Merge Descriptions').item.json.interior.special_rooms }}\n- Architectural Details: {{ $('Merge Descriptions').item.json.interior.architectural_details }}\n\nEXTERIOR (from photo analysis):\n- Style: {{ $('Merge Descriptions').item.json.exterior.style }}\n- Materials: {{ $('Merge Descriptions').item.json.exterior.materials }}\n- Landscaping: {{ $('Merge Descriptions').item.json.exterior.landscaping }}\n- Outdoor Living: {{ $('Merge Descriptions').item.json.exterior.outdoor_living }}\n\nCONDITION:\n- {{ $('Merge Descriptions').item.json.condition.renovation_status }}, {{ $('Merge Descriptions').item.json.condition.quality_level }}, {{ $('Merge Descriptions').item.json.condition.maintenance }}\n\nNEIGHBORHOOD & LIFESTYLE:\nSchools:\n{{ $('Merge Descriptions').item.json.schools.nearby.map(s => `- ${s.name} (${s.distance})`).join('\\n') }}\n\nDining & Entertainment:\n- {{ $('Merge Descriptions').item.json.restaurants.count }} restaurants nearby including {{ $('Merge Descriptions').item.json.restaurants.top_rated.slice(0, 3).join(', ') }}\n\nTransportation:\n{{ $('Merge Descriptions').item.json.transportation.nearby_stops.length > 0 ? $('Merge Descriptions').item.json.transportation.nearby_stops.map(t => `- ${t.name} (${t.distance})`).join('\\n') : '- Great transit access' }}\n\nREQUIREMENTS:\n- Write 200-300 words\n- Conversational, engaging tone that sells the lifestyle\n- Paint a vivid picture of living in this home and neighborhood\n- Emphasize walkability, nearby dining, schools, and lifestyle amenities\n- Shorter paragraphs for mobile reading\n- Use 2-3 tasteful emojis (✨🏡🌳☕🎓)\n- Create emotional connection - help buyers imagine their life here\n- End with compelling call-to-action question\n- Return ONLY the description text, no formatting markers"
+            },
+            {
+              "role": "system",
+              "content": "You are an expert real estate copywriter specializing in engaging online listings. Write lifestyle-focused descriptions that emotionally connect with buyers."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        288
+      ],
+      "id": "4a04fe18-e630-4961-8c16-0dee1688d7aa",
+      "name": "Generate Zillow Description",
+      "credentials": {
+        "openAiApi": {
+          "id": "jsQVDIaN9o5AoPfd",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "84nsLD3ARbRiwjJH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/84nsLD3ARbRiwjJH",
+          "cachedResultName": "Listing Description Generator - subworkflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "address": "={{ $('Extract Property Data').item.json.address }}, {{ $('Extract Property Data').item.json.city }}, {{ $('Extract Property Data').item.json.state }}, {{ $('Extract Property Data').item.json.zip }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        912,
+        288
+      ],
+      "id": "4a317389-b62d-4ff5-9651-b5da3a48c798",
+      "name": "Get Neighborhood Data"
+    }
+  ],
+  "pinData": {
+    "On form submission": [
+      {
+        "json": {
+          "Property Details": "2847 NW Thurman Street, Portland, Oregon 97210\r\n\r\nModern townhouse in desirable Northwest Portland\r\n\r\n3 bedrooms, 2.5 bathrooms\r\n1,850 square feet\r\nBuilt in 2019\r\nListed at $725,000\r\n\r\nFeatures:\r\n- Attached 1-car garage\r\n- Rooftop deck with stunning city and mountain views\r\n- Open concept main floor with 10-foot ceilings\r\n- Gourmet kitchen with quartz countertops and waterfall island\r\n- Stainless steel appliances including gas range\r\n- Hardwood floors throughout main living areas\r\n- Master suite with walk-in closet and spa-like bathroom\r\n- Energy efficient with smart home features\r\n- Private backyard patio\r\n- Walk Score 95 - walking distance to shops, restaurants, cafes\r\n\r\nNeighborhood: Nob Hill/Alphabet District - one of Portland's most walkable and vibrant neighborhoods",
+          "Google Drive Folder Link": "https://drive.google.com/drive/folders/1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE?usp=sharing",
+          "submittedAt": "2026-01-18T19:52:55.087-05:00",
+          "formMode": "test"
+        }
+      }
+    ],
+    "Message a model": [
+      {
+        "json": {
+          "output": [
+            {
+              "id": "msg_00e5f6cc85929ca600696d87aea63081a0aa519964651c9415",
+              "type": "message",
+              "status": "completed",
+              "content": [
+                {
+                  "type": "output_text",
+                  "annotations": [],
+                  "logprobs": [],
+                  "text": {
+                    "address": "2847 NW Thurman Street",
+                    "city": "Portland",
+                    "state": "OR",
+                    "zip": "97210",
+                    "property_type": "townhouse",
+                    "bedrooms": 3,
+                    "bathrooms": 2.5,
+                    "square_footage": 1850,
+                    "price": 725000,
+                    "year_built": 2019,
+                    "special_features": "Attached 1-car garage, Rooftop deck with stunning city and mountain views, Open concept main floor with 10-foot ceilings, Gourmet kitchen with quartz countertops and waterfall island, Stainless steel appliances including gas range, Hardwood floors throughout main living areas, Master suite with walk-in closet and spa-like bathroom, Energy efficient with smart home features, Private backyard patio, Walk Score 95 - walking distance to shops, restaurants, cafes"
+                  }
+                }
+              ],
+              "role": "assistant"
+            }
+          ]
+        }
+      }
+    ],
+    "form_input": [
+      {
+        "json": {
+          "folder_link": "https://drive.google.com/drive/folders/1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE?usp=sharing",
+          "property_details_text": "2847 NW Thurman Street, Portland, Oregon 97210\r\n\r\nModern townhouse in desirable Northwest Portland\r\n\r\n3 bedrooms, 2.5 bathrooms\r\n1,850 square feet\r\nBuilt in 2019\r\nListed at $725,000\r\n\r\nFeatures:\r\n- Attached 1-car garage\r\n- Rooftop deck with stunning city and mountain views\r\n- Open concept main floor with 10-foot ceilings\r\n- Gourmet kitchen with quartz countertops and waterfall island\r\n- Stainless steel appliances including gas range\r\n- Hardwood floors throughout main living areas\r\n- Master suite with walk-in closet and spa-like bathroom\r\n- Energy efficient with smart home features\r\n- Private backyard patio\r\n- Walk Score 95 - walking distance to shops, restaurants, cafes\r\n\r\nNeighborhood: Nob Hill/Alphabet District - one of Portland's most walkable and vibrant neighborhoods"
+        }
+      }
+    ],
+    "Search files and folders": [
+      {
+        "json": {
+          "id": "1TiC_x62FiTKb3MtuuhLY9bHlZplzGDoM",
+          "name": "pexels-christa-grover-977018-2121121.jpg"
+        }
+      },
+      {
+        "json": {
+          "id": "1-nU2BO6ShvShOFRhrl5QmYPX6BWVbsRB",
+          "name": "pexels-viktoriia-kondratiuk-458099300-17174768.jpg"
+        }
+      },
+      {
+        "json": {
+          "id": "1YmNyFPhamtGJOtxGgVdrB-uHiAKrvlqi",
+          "name": "pexels-curtis-adams-1694007-4119832.jpg"
+        }
+      },
+      {
+        "json": {
+          "id": "13AM70TBA-MOHJhPlvLeXP78D9SvzU8fH",
+          "name": "pexels-hello-pipcke-1008732483-20285350.jpg"
+        }
+      },
+      {
+        "json": {
+          "id": "1VUhc1ewR0WlG4GExviN_IqzrM_G8qpEY",
+          "name": "pexels-curtis-adams-1694007-4221389.jpg"
+        }
+      }
+    ],
+    "HTTP Request": [
+      {
+        "json": {
+          "id": "chatcmpl-CzYwKlOeIM7tbroPUjzgwvIucPtEY",
+          "object": "chat.completion",
+          "created": 1768788352,
+          "model": "gpt-4o-mini-2024-07-18",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\n  \"interior\": {\n    \"flooring\": \"hardwood and tile\",\n    \"kitchen\": \"stainless steel appliances, granite countertops, wooden cabinets\",\n    \"bathrooms\": \"details not specified\",\n    \"special_rooms\": \"dining area adjacent to living space\",\n    \"architectural_details\": \"staircase with wooden banister, high ceilings, large windows\",\n    \"fireplace\": \"not visible\"\n  },\n  \"exterior\": {\n    \"style\": \"modern architectural design\",\n    \"materials\": \"combination of wood, glass, and concrete\",\n    \"landscaping\": \"well-maintained hedges and shrubs\",\n    \"outdoor_living\": \"balcony with glass railings, possible rooftop area\",\n    \"other\": \"two garage doors visible\"\n  },\n  \"condition\": {\n    \"renovation_status\": \"well-maintained\",\n    \"quality_level\": \"high quality\",\n    \"maintenance\": \"good condition\"\n  },\n  \"hero_photos\": [\n    {\"rank\": 1, \"photo_filename\": \"property_exterior_2.jpg\", \"reason\": \"modern design and appealing landscaping\", \"confidence\": 95}\n  ]\n}",
+                "refusal": null,
+                "annotations": []
+              },
+              "logprobs": null,
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 184402,
+            "completion_tokens": 248,
+            "total_tokens": 184650,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "service_tier": "default",
+          "system_fingerprint": "fp_8bbc38b4db"
+        }
+      }
+    ],
+    "Build image URLs": [
+      {
+        "json": {
+          "file_id": "1TiC_x62FiTKb3MtuuhLY9bHlZplzGDoM",
+          "file_name": "pexels-christa-grover-977018-2121121.jpg",
+          "image_url": "https://drive.google.com/uc?export=view&id=1TiC_x62FiTKb3MtuuhLY9bHlZplzGDoM"
+        }
+      },
+      {
+        "json": {
+          "file_id": "1-nU2BO6ShvShOFRhrl5QmYPX6BWVbsRB",
+          "file_name": "pexels-viktoriia-kondratiuk-458099300-17174768.jpg",
+          "image_url": "https://drive.google.com/uc?export=view&id=1-nU2BO6ShvShOFRhrl5QmYPX6BWVbsRB"
+        }
+      },
+      {
+        "json": {
+          "file_id": "1YmNyFPhamtGJOtxGgVdrB-uHiAKrvlqi",
+          "file_name": "pexels-curtis-adams-1694007-4119832.jpg",
+          "image_url": "https://drive.google.com/uc?export=view&id=1YmNyFPhamtGJOtxGgVdrB-uHiAKrvlqi"
+        }
+      },
+      {
+        "json": {
+          "file_id": "13AM70TBA-MOHJhPlvLeXP78D9SvzU8fH",
+          "file_name": "pexels-hello-pipcke-1008732483-20285350.jpg",
+          "image_url": "https://drive.google.com/uc?export=view&id=13AM70TBA-MOHJhPlvLeXP78D9SvzU8fH"
+        }
+      },
+      {
+        "json": {
+          "file_id": "1VUhc1ewR0WlG4GExviN_IqzrM_G8qpEY",
+          "file_name": "pexels-curtis-adams-1694007-4221389.jpg",
+          "image_url": "https://drive.google.com/uc?export=view&id=1VUhc1ewR0WlG4GExviN_IqzrM_G8qpEY"
+        }
+      }
+    ],
+    "Extract Property Data": [
+      {
+        "json": {
+          "address": "2847 NW Thurman Street",
+          "city": "Portland",
+          "state": "OR",
+          "zip": "97210",
+          "property_type": "townhouse",
+          "bedrooms": 3,
+          "bathrooms": 2.5,
+          "square_footage": 1850,
+          "price": 725000,
+          "year_built": 2019,
+          "special_features": "Attached 1-car garage, Rooftop deck with stunning city and mountain views, Open concept main floor with 10-foot ceilings, Gourmet kitchen with quartz countertops and waterfall island, Stainless steel appliances including gas range, Hardwood floors throughout main living areas, Master suite with walk-in closet and spa-like bathroom, Energy efficient with smart home features, Private backyard patio, Walk Score 95 - walking distance to shops, restaurants, cafes",
+          "folder_id": "1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE",
+          "folder_url": "https://drive.google.com/drive/folders/1_tQy2KVnJmpWXpiUTFH9nmK5llpjBVDE?usp=sharing"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "form_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Extract Property Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "form_input": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Build image URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Build Vision API request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Parse Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vision Response": {
+      "main": [
+        [
+          {
+            "node": "Get Neighborhood Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vision API request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build image URLs": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Property Data": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Descriptions": {
+      "main": [
+        [
+          {
+            "node": "Generate MLS Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate MLS Description": {
+      "main": [
+        [
+          {
+            "node": "Generate Zillow Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Neighborhood Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Descriptions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "731118c0-5ad6-4103-82a0-12bad9e14579",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44e5ec835778a2c48c17221c09095a30c0d8cf2c8183a1da7b0edb205600c0ef"
+  },
+  "id": "wjr96OSpQLUNm5KO",
+  "tags": []
+}
